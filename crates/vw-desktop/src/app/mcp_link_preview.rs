@@ -1,7 +1,7 @@
-//! Untrusted launch payloads only become inert catalog drafts after explicit handoff.
+//! Untrusted launch payloads only become inert global configuration drafts after explicit handoff.
 use crate::app::{
     App, Message, deep_links,
-    message::settings::{GeneralSettingsMessage, SettingsMessage, mcp_management_import},
+    message::settings::{GeneralSettingsMessage, SettingsMessage, mcp_management_form},
 };
 use iced::{Element, Task};
 
@@ -9,7 +9,7 @@ use desktop_platform::mcp_link_preview::{parse, pending};
 
 pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     let Some(link) = pending().filter(|l| l.id == id) else { return Task::none() };
-    let Some(context) = crate::app::message::settings::mcp_management_list::context(app) else {
+    let Some(context) = mcp_management_form::context() else {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Error,
             "请先连接目标网关",
@@ -24,7 +24,7 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
             );
         }
     };
-    if app.mcp_settings.import.is_some() {
+    if app.mcp_settings.modal_open() {
         return app.show_localized_toast(
             crate::app::state::ToastKind::Error,
             "请先关闭已有 MCP 导入弹窗",
@@ -35,15 +35,23 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     if !crate::app::components::system_settings_mcp::is_visible(app) {
         return navigation;
     }
-    if !mcp_management_import::open_link(app, drafts) {
-        return app.show_localized_toast(
-            crate::app::state::ToastKind::Error,
-            "请检查网关连接并关闭已有 MCP 导入弹窗",
-            vec![],
-        );
+    let invalid = desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("无效项");
+    let candidates = drafts
+        .into_iter()
+        .map(|item| {
+            let (id, connection) = match item {
+                Ok(draft) => (draft.id, Ok(draft.connection)),
+                Err(error) => (invalid.to_owned(), Err(error)),
+            };
+            desktop_settings_mcp::management_form::paste::Candidate { id, connection }
+        })
+        .collect();
+    let draft =
+        mcp_management_form::update(app, mcp_management_form::FormMessage::OpenLink(candidates));
+    if app.mcp_settings.connection_form.is_some() {
+        let _ = deep_links::acknowledge(id);
     }
-    let _ = deep_links::acknowledge(id);
-    navigation
+    Task::batch([navigation, draft])
 }
 
 pub(crate) fn overlay<'a>(app: &App, base: Element<'a, Message>) -> Element<'a, Message> {

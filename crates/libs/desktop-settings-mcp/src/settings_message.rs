@@ -2,14 +2,7 @@ use crate::state::{McpSettingsTab, McpNewServerTransport};
 use iced::widget::text_editor;
 #[derive(Debug, Clone)]
 pub enum McpMessage {
-    Management(crate::management_context::Context, crate::management_state::ViewEvent),
-    Tools(crate::management_tools::ToolsMessage),
-    Diagnostic(desktop_apps_ui::agent_apps_diagnostics::mcp::McpDiagnosticMessage),
-    Catalog(crate::management_list::CatalogMessage),
     ConnectionForm(crate::management_form::FormMessage),
-    Bindings(crate::management_bindings::BindingsMessage),
-    Resync(crate::management_resync::ResyncMessage),
-    Import(crate::management_import::ImportMessage),
     Transfer(crate::configuration_transfer::Message),
     TabSelected(McpSettingsTab),
     ServerSearchChanged(String),

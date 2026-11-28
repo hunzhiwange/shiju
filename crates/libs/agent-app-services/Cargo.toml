@@ -42,7 +42,6 @@ vw-api-transport = { path = "../api-transport" }
 mcp-client = { path = "../mcp-client" }
 tokio = { version = "1", features = ["rt", "macros", "time"] }
 tokio-util = { version = "0.7.18", features = ["rt"] }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 axum = { version = "0.8.8", default-features = false }

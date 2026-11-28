@@ -8,15 +8,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenApps => domain::Message::OpenApps,
         #[cfg(not(target_arch = "wasm32"))]
         ViewMessage::OpenFileEditor => {
-            return Task::perform(desktop_workspace::basic::pick_file(), |path| {
-                path.map(|path| Message::View(ViewMessage::FileEditorFileSelected(path)))
-                    .unwrap_or(Message::None)
-            });
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::FileEditorFileSelected(path) => {
+            use crate::app::message::preview;
+            use desktop_navigation::panel::tabs::EDITOR_TAB_ID;
+
             app.navigation_panels.show_system_settings = false;
-            return crate::app::message::preview::tab::open_standalone(app, path, None, None);
+            preview::dismiss_preview_popup_menus(app);
+            preview::tab::ensure_standalone_tab(app);
+            return super::tabs::update(app, ViewMessage::TabSelected(EDITOR_TAB_ID.to_owned()));
         }
         ViewMessage::OpenUsage => domain::Message::OpenUsage,
         ViewMessage::OpenKnowledge => domain::Message::OpenKnowledge,

@@ -278,20 +278,7 @@ mod model_catalog_acceptance_tests;
 
 // Discovery routes live in gateway-model; host integration tests stay here.
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs"]
-mod mcp_management_create_tests;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_delete_tests.rs"]
-mod mcp_management_delete_tests;
-mod mcp_management_read;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_read_tests.rs"]
-mod mcp_management_read_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs"]
-mod mcp_management_update_tests;
 
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
@@ -320,9 +307,6 @@ mod aggregation_omp_tests;
 #[cfg(target_os = "macos")]
 pub(crate) mod aggregation_resync;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs"]
-mod mcp_management_bindings_tests;
 
 mod aggregation_desktop;
 
@@ -333,32 +317,15 @@ mod agent_apps_diagnostics_acceptance_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_diagnostics_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_import_tests.rs"]
-mod mcp_management_import_tests;
 
 #[cfg(test)]
 mod voice_settings;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs"]
-mod mcp_management_resync_tests;
 
-mod mcp_management_resync;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs"]
-mod mcp_management_probe_tests;
 
-#[cfg(target_os = "macos")]
-mod mcp_management_probe;
 
-#[cfg(target_os = "macos")]
-mod mcp_management_tools;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs"]
-mod mcp_management_tools_tests;
 
 
 pub(crate) use gateway_agent_app::agent_app_prompt_files as agent_app_prompt_files;

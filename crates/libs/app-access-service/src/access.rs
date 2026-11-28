@@ -19,10 +19,6 @@ use {
     vw_api_app_diagnostics::DiagnosticScope,
     vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
     vw_api_transport::id::ProjectId,
-    vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpConnectionDefinition,
-    vw_api_mcp_management::McpCredentialRef,
-    vw_api_mcp_management::McpRecordId,
 };
 
 #[derive(Deserialize)]
@@ -184,11 +180,11 @@ struct Grant {
     #[serde(default)]
     routing_apps: Vec<RoutingAppPermit>,
     #[cfg(target_os = "macos")]
-    #[serde(default)]
-    mcp_probe: Vec<McpProbePermit>,
+    #[serde(default, rename = "mcp_probe")]
+    _legacy_mcp_probe: Option<serde::de::IgnoredAny>,
     #[cfg(target_os = "macos")]
-    #[serde(default)]
-    mcp_acp_read: Vec<McpAcpReadPermit>,
+    #[serde(default, rename = "mcp_acp_read")]
+    _legacy_mcp_acp_read: Option<serde::de::IgnoredAny>,
     /// Catalog reads include one-time inert import; no native mutation authority.
     #[cfg(target_os = "macos")]
     #[serde(default)]
@@ -207,158 +203,6 @@ struct Grant {
 struct RoutingAppPermit {
     project_id: ProjectId,
     app_id: AppId,
-}
-
-#[cfg(target_os = "macos")]
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
-struct McpAcpReadPermit {
-    project_id: ProjectId,
-    session_id: vw_api_transport::SessionId,
-}
-
-#[cfg(target_os = "macos")]
-#[derive(Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct McpProbePermit {
-    project_id: ProjectId,
-    app_id: AppId,
-    record_id: McpRecordId,
-    pub connection_revision: u64,
-    // SHA-256 of the canonical URL, including path and query.
-    #[serde(default)]
-    endpoint_sha256: String,
-    #[serde(default)]
-    stdio_sha256: Option<String>,
-    #[serde(default)]
-    pub stdio_workspace: Option<PathBuf>,
-    #[serde(default)]
-    tenant_catalog: bool,
-    #[serde(default)]
-    credentials: Vec<McpCredentialRef>,
-}
-
-#[cfg(target_os = "macos")]
-impl McpProbePermit {
-    #[expect(dead_code, reason = "Legacy policy scope matcher is retained for compatibility")]
-    fn matches(&self, scope: &DiagnosticScope, id: &McpRecordId) -> bool {
-        self.project_id == *scope.project.project_id()
-            && self.app_id == scope.app_id
-            && self.record_id == *id
-            && self.connection_revision > 0
-    }
-
-    pub fn catalog_scope(&self, scope: &DiagnosticScope) -> McpCatalogScope {
-        if self.tenant_catalog {
-            McpCatalogScope::Tenant { scope: scope.project.tenant_scope().clone() }
-        } else {
-            McpCatalogScope::Project { scope: scope.project.clone() }
-        }
-    }
-
-    pub fn permits_stdio(&self, definition: &McpConnectionDefinition) -> bool {
-        matches!(definition, McpConnectionDefinition::Stdio { .. })
-            && self.endpoint_sha256.is_empty()
-            && self.stdio_workspace.as_ref().is_some_and(|path| path.is_absolute() && path.is_dir())
-            && self.stdio_sha256.as_ref().is_some_and(|digest| {
-                serde_json::to_vec(definition)
-                    .is_ok_and(|bytes| hex::encode(Sha256::digest(bytes)) == *digest)
-            })
-    }
-
-    pub fn permits_endpoint(&self, url: &str) -> bool {
-        if self.stdio_sha256.is_some() || self.stdio_workspace.is_some() {
-            return false;
-        }
-        reqwest_012::Url::parse(url).is_ok_and(|endpoint| self.matches_endpoint(&endpoint))
-    }
-
-    fn matches_endpoint(&self, endpoint: &reqwest_012::Url) -> bool {
-        hex::encode(Sha256::digest(endpoint.as_str())) == self.endpoint_sha256
-    }
-
-    pub fn permits_credential(
-        &self,
-        definition: &McpConnectionDefinition,
-        reference: &McpCredentialRef,
-    ) -> bool {
-        if matches!(definition, McpConnectionDefinition::Stdio { .. }) {
-            return self.credentials.contains(reference) && self.permits_stdio(definition);
-        }
-        let url = match definition {
-            McpConnectionDefinition::StreamableHttp { url, .. }
-            | McpConnectionDefinition::Sse { url, .. } => url,
-            _ => return false,
-        };
-        self.credentials.contains(reference)
-            && reqwest_012::Url::parse(url).is_ok_and(|endpoint| {
-                endpoint.scheme() == "https" && self.matches_endpoint(&endpoint)
-            })
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub struct McpProbeAccess {
-    policy: Option<PathBuf>,
-    digest: String,
-}
-
-#[cfg(target_os = "macos")]
-#[derive(PartialEq, Eq)]
-pub struct AuthorizedMcpProbe {
-    pub principal: String,
-    pub credential_root: Option<PathBuf>,
-    pub permit: McpProbePermit,
-}
-
-#[cfg(target_os = "macos")]
-impl McpProbeAccess {
-    pub fn new(policy: Option<PathBuf>, headers: &HeaderMap) -> Result<Self, StatusCode> {
-        let _ = headers;
-        Ok(Self { policy, digest: "gateway".into() })
-    }
-
-    /// Discovery also exposes project selection metadata, requiring the existing catalog view grant.
-    pub fn authorize_details(
-        &self,
-        scope: &DiagnosticScope,
-        id: &McpRecordId,
-    ) -> Result<AuthorizedMcpProbe, StatusCode> {
-        let grant = self.authorize(scope, id)?;
-        let view = execution_context(
-            self.policy.as_deref(),
-            &self.digest,
-            scope.project.tenant_scope(),
-            &scope.target_host_id,
-            None,
-            Capability::ProviderConfigRead,
-        )?;
-        if view.principal != grant.principal {
-            return Err(StatusCode::FORBIDDEN);
-        }
-        Ok(grant)
-    }
-
-    pub fn authorize(
-        &self,
-        scope: &DiagnosticScope,
-        id: &McpRecordId,
-    ) -> Result<AuthorizedMcpProbe, StatusCode> {
-        let authorized = execution_context(
-            self.policy.as_deref(),
-            &self.digest,
-            scope.project.tenant_scope(),
-            &scope.target_host_id,
-            None,
-            Capability::McpProbe(scope, id),
-        )?;
-        Ok(AuthorizedMcpProbe {
-            principal: authorized.principal,
-            credential_root: authorized.host.credential_root,
-            permit: authorized.mcp_probe.ok_or(StatusCode::FORBIDDEN)?,
-        })
-    }
 }
 
 #[derive(Deserialize)]
@@ -575,8 +419,6 @@ pub struct Authorization {
     #[cfg(target_os = "macos")]
     pub usage_script_origins: Vec<reqwest::Url>,
     pub identities: Vec<IdentityPermit>,
-    #[cfg(target_os = "macos")]
-    mcp_probe: Option<McpProbePermit>,
     native_slots: Vec<(AuthService, bool)>,
     pub auth_browser_local: bool,
     pub can_set_default: bool,
@@ -762,10 +604,6 @@ enum Capability<'a> {
         manage: bool,
         provider_write: bool,
     },
-    #[cfg(target_os = "macos")]
-    McpProbe(&'a DiagnosticScope, &'a McpRecordId),
-    #[cfg(target_os = "macos")]
-    McpAcpRead(&'a ProjectId, &'a vw_api_transport::SessionId),
     #[cfg(target_os = "macos")]
     DiagnosticProbe(&'a DiagnosticScope),
     #[cfg(target_os = "macos")]
@@ -983,16 +821,10 @@ fn execution_context(
         },
         provider: i.provider, instance_id: i.instance_id.clone(),
     }).collect();
-    #[cfg(target_os = "macos")]
-    let mcp_probe = if let Capability::McpProbe(scope, id) = capability {
-        Some(gateway_mcp_permit(scope, id, &host.home)?)
-    } else { None };
     Ok(Authorization {
         host, external_history, principal: "desktop-local-user".into(), identities: Vec::new(),
         #[cfg(target_os = "macos")]
         usage_script_origins: Vec::new(),
-        #[cfg(target_os = "macos")]
-        mcp_probe,
         native_slots: vec![(AuthService::ClaudeOfficial, true), (AuthService::AgyOauth, true),
             (AuthService::DshAccount, true), (AuthService::KimiOauth, true)],
         auth_browser_local: true, can_set_default: true, can_revoke: true,
@@ -1002,8 +834,6 @@ fn execution_context(
 #[path = "gateway_execution.rs"]
 mod gateway_execution;
 use gateway_execution::gateway_host;
-#[cfg(target_os = "macos")]
-use gateway_execution::gateway_mcp_permit;
 
 /// Policy load or startup validation failed. Details stay out of request responses.
 #[derive(Clone, Copy, Debug)]
@@ -1549,39 +1379,7 @@ pub fn authorize_diagnostic_probe(
     path: Option<&Path>,
     headers: &HeaderMap,
     scope: &DiagnosticScope,
-    request: &vw_api_app_diagnostics::DiagnosticStartRequest,
 ) -> Result<(Option<PathBuf>, String), StatusCode> {
-    if let vw_api_app_diagnostics::DiagnosticStartRequest::Mcp { server_ids } =
-        request
-    {
-        if server_ids.is_empty()
-            || server_ids.len() > crate::MAX_PROBES_PER_JOB
-        {
-            return Err(StatusCode::BAD_REQUEST);
-        }
-        // Authorize the entire batch before any configuration or credential lookup.
-        let mut authorized = None;
-        let mut unique = HashSet::new();
-        for id in server_ids {
-            if !unique.insert(id) {
-                return Err(StatusCode::BAD_REQUEST);
-            }
-            let current = authorize_scoped(
-                path,
-                headers,
-                scope.project.tenant_scope(),
-                &scope.target_host_id,
-                None,
-                Capability::McpProbe(scope, id),
-            )?;
-            authorized = Some(current);
-        }
-        return authorized
-            .map(|authorization: Authorization| {
-                (authorization.host.credential_root, authorization.principal)
-            })
-            .ok_or(StatusCode::BAD_REQUEST);
-    }
     authorize_scoped(
         path,
         headers,
@@ -1636,29 +1434,6 @@ mod aggregation_lifecycle;
 pub use aggregation_lifecycle::{
     aggregation_lifecycle_host, authorize_aggregation_lifecycle,
 };
-
-/// Session reference reads require their own exact grant, not a connection or catalog grant.
-#[cfg(target_os = "macos")]
-pub fn authorize_mcp_acp_read(
-    path: Option<&Path>,
-    headers: &HeaderMap,
-    project: &vw_api_transport::ProjectScope,
-    host: &str,
-    session: &vw_api_transport::SessionId,
-) -> Result<(), StatusCode> {
-    if session.as_ref().is_empty() {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-    authorize_scoped(
-        path,
-        headers,
-        project.tenant_scope(),
-        host,
-        None,
-        Capability::McpAcpRead(project.project_id(), session),
-    )
-    .map(|_| ())
-}
 
 /// Dashboard process control requires an explicit project grant on the target host.
 pub fn authorize_hermes_dashboard(

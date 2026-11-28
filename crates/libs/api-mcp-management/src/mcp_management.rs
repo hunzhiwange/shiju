@@ -1,6 +1,6 @@
 //! Wire contracts for the managed MCP catalog and its independent consumers.
 
-use vw_api_transport::{ProjectId, ProjectScope, SessionId, TaskId, TenantScope};
+use vw_api_transport::{ProjectId, ProjectScope, SessionId, TenantScope};
 use vw_api_app_identity::{AppId, AppInstallationId};
 use vw_api_app_auth::AuthService;
 use serde::{Deserialize, Serialize};
@@ -247,22 +247,6 @@ pub enum McpFailureCode {
     TimedOut,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum McpBatchOutcome {
-    Succeeded,
-    PartiallySucceeded,
-    Failed,
-    Cancelled,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpDistributionResult {
-    pub outcome: McpBatchOutcome,
-    pub items: Vec<McpDistributionItem>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct McpDistributionItem {
@@ -285,15 +269,6 @@ pub enum McpDistributionOutcome {
     Unsupported,
     Failed { code: McpFailureCode },
     Cancelled,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpConnectionCheckResult {
-    pub operation_id: TaskId,
-    pub generation: u64,
-    pub outcome: McpBatchOutcome,
-    pub items: Vec<McpConnectionCheckItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -326,21 +301,6 @@ pub struct McpFailureResponse {
     pub code: McpFailureCode,
 }
 
-/// The catalog and its desired native bindings on the requested host.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpCatalogResponse {
-    pub records: Vec<McpCatalogRecord>,
-    pub bindings: Vec<McpCliBinding>,
-    pub capabilities: Vec<McpAppCapability>,
-}
-
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpPresetsResponse {
-    pub presets: Vec<McpPresetDraftView>,
-}
-
 /// A built-in, disabled draft. The connection contains only static preset values.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -352,49 +312,6 @@ pub struct McpPresetDraftView {
     pub documentation: String,
     pub connection: McpConnectionDefinition,
     pub enabled: bool,
-}
-
-/// Observation for the requested installation, with no native paths or definitions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpNativePreview {
-    pub target: McpAppTarget,
-    pub status: McpNativeStatus,
-    pub entries: Vec<McpNativePreviewEntry>,
-}
-
-/// Compare a catalog ID against the native file on the authorized host.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpNativePreviewEntry {
-    pub id: McpRecordId,
-    pub status: McpNativeStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub enabled: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub transport: Option<McpTransport>,
-}
-
-/// Reconciliation progress, including per-application reports already produced by the host.
-/// A running job has no batch outcome yet; completed targets remain visible on failure/cancel.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct McpResyncOperationStatus {
-    #[serde(flatten)]
-    pub operation: vw_api_app_operations::AppOperationStatus,
-    pub targets: Vec<McpResyncTargetResult>,
-    pub outcome: Option<McpBatchOutcome>,
-}
-
-/// Public report shape returned by the existing reconciliation operation endpoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct McpResyncTargetResult {
-    pub app_id: AppId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub distribution: Option<McpDistributionResult>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<McpFailureCode>,
 }
 
 /// Explicit, revision-bound discovery. The diagnostic query supplies the authorized host/project.
@@ -432,35 +349,6 @@ pub struct McpToolDetails {
     pub runtime_error: Option<McpFailureCode>,
 }
 
-/// Read only one explicitly authorized inbound ACP session, without client-supplied paths.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpAcpUsageQuery {
-    #[serde(default = "vw_api_transport::local_host_id")]
-    pub target_host_id: String,
-    #[serde(default = "vw_api_transport::local_project_id")]
-    pub project_id: ProjectId,
-    pub session_id: SessionId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpAcpUsage {
-    pub target_host_id: String,
-    pub project: ProjectScope,
-    pub session_id: SessionId,
-    pub mount_revision: u64,
-    pub mounts: Vec<McpAcpUsageMount>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpAcpUsageMount {
-    pub scope: McpCatalogScope,
-    pub record: McpRecordRef,
-    pub failure: Option<McpFailureCode>,
-}
-
 /// Explicit actions distinguish omission, replacement, and clearing without nullable ambiguity.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "action", content = "value", rename_all = "snake_case", deny_unknown_fields)]
@@ -494,20 +382,3 @@ pub enum McpPublicSummaryEdit {
     Set(String),
     Clear,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpSafeExportResponse {
-    /// Complete native mcpServers JSON, or None when no selected definition is public.
-    pub json: Option<String>,
-    pub skipped: Vec<McpExportSkipped>,
-    pub reason: Option<McpExportSkipReason>,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct McpExportSkipped {
-    pub id: McpRecordId,
-    pub reason: McpExportSkipReason,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum McpExportSkipReason { ProtectedDefinition, NotFound, NoPublicDefinitions }

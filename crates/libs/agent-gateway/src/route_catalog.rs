@@ -122,8 +122,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "start authorized application diagnostics",
         ),
         #[cfg(target_os = "macos")]
-        client_route("POST", "/v1/agent-apps/mcp/checks", "start authorized MCP connection checks"),
-        #[cfg(target_os = "macos")]
         client_route(
             "POST",
             "/v1/agent-apps/diagnostics/endpoint-candidates/query",
@@ -141,10 +139,10 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "/v1/agent-apps/diagnostics/jobs/{id}/cancel",
             "cancel an owned diagnostic job",
         ),
-        client_route("GET", "/v1/agent-apps/mcp", "managed MCP catalog and capabilities"),
-        client_route("POST", "/v1/agent-apps/mcp", "create managed MCP catalog record"),
-        client_route("GET", "/v1/agent-apps/mcp/presets", "managed MCP presets"),
-        client_route("GET", "/v1/agent-apps/mcp/native", "managed MCP native preview"),
+        client_route("GET", "/v1/global/mcp/options", "global MCP templates and sync targets"),
+        client_route("POST", "/v1/global/mcp/sync", "sync a saved global MCP server"),
+        client_route("POST", "/v1/project-mcp/definitions", "create a project MCP definition"),
+        client_route("PUT", "/v1/project-mcp/definitions/{id}", "update and review a project MCP definition"),
         client_route("POST", "/v1/mcp/apps/call", "session-bound MCP App tool call"),
         client_route("GET", "/v1/cron/history", "cron history"),
         client_route("GET", "/v1/cron", "cron jobs"),

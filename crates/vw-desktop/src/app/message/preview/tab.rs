@@ -81,6 +81,17 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     update_in_surface(app, message, false)
 }
 
+pub(crate) fn ensure_standalone_tab(app: &mut App) {
+    if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EDITOR_TAB_ID) {
+        app.navigation_tabs.open_tabs.push(AppTab {
+            id: EDITOR_TAB_ID.to_owned(),
+            title: desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("编辑器").to_owned(),
+            screen: Screen::Preview,
+            project_path: None,
+        });
+    }
+}
+
 pub(super) fn open_active_in_standalone(app: &mut App) -> Task<Message> {
     if app.navigation_tabs.screen != Screen::Project {
         return Task::none();
@@ -223,14 +234,7 @@ fn update_in_surface(app: &mut App, message: PreviewMessage, standalone: bool) -
         if in_project {
             if reveal_work_resources { tasks.push(Task::done(Message::View(ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles)))); }
         } else {
-            if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EDITOR_TAB_ID) {
-                app.navigation_tabs.open_tabs.push(AppTab {
-                    id: EDITOR_TAB_ID.to_owned(),
-                    title: desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("编辑器").to_owned(),
-                    screen: Screen::Preview,
-                    project_path: None,
-                });
-            }
+            ensure_standalone_tab(app);
             app.navigation_tabs.active_tab_id = Some(EDITOR_TAB_ID.to_owned());
             app.navigation_tabs.screen = Screen::Preview;
         }

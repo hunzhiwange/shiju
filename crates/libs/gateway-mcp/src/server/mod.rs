@@ -1,18 +1,9 @@
-//! Managed MCP HTTP routes backed by domain services.
+//! Gateway MCP runtime, global synchronization and project registration.
 mod authorization;
 use authorization as agent_apps;
-mod mcp_management_bindings;
-mod mcp_management_create;
-mod mcp_management_delete;
-mod mcp_management_import;
-pub mod mcp_management_read;
-pub mod mcp_management_resync;
-mod mcp_management_update;
 pub mod host;
 pub mod mcp;
-#[cfg(target_os = "macos")]
-pub mod mcp_management_tools;
-#[cfg(target_os = "macos")]
-pub mod mcp_management_probe;
-
 pub mod global_sync;
+pub mod project_mcp;
+mod project_mcp_create;
+mod project_mcp_update;

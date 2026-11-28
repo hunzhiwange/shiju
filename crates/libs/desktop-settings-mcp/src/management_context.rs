@@ -1,7 +1,8 @@
-use desktop_provider_apps::AgentAppsContext;
+use vw_api_transport::TenantScope;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
-    pub endpoint: AgentAppsContext,
+    pub gateway: String,
+    pub tenant: TenantScope,
     pub host: String,
-    pub credentials_generation: u64,
 }

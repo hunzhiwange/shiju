@@ -179,19 +179,18 @@ pub fn view<'a, Message: Clone + 'static>(
     transfer_actions: Vec<Element<'a, Message>>,
     extensions_panel: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    view_with_management(event, s, locale, transfer_actions, extensions_panel, None, |index| {
-        event(McpMessage::ServerEditRequested(index))
-    })
+    view_with_sync::<Message>(
+        event, s, locale, transfer_actions, extensions_panel, None,
+    )
 }
 
-pub fn view_with_management<'a, Message: Clone + 'static>(
+pub fn view_with_sync<'a, Message: Clone + 'static>(
     event: fn(McpMessage) -> Message,
     s: &'a State,
     locale: DesktopLocale,
     transfer_actions: Vec<Element<'a, Message>>,
     extensions_panel: Element<'a, Message>,
-    management: Option<Element<'a, Message>>,
-    sync_global: impl Fn(usize) -> Message,
+    sync_global: Option<fn(usize) -> Message>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(locale);
     let mut content = column![
@@ -278,14 +277,13 @@ pub fn view_with_management<'a, Message: Clone + 'static>(
             } else {
                 "没有匹配的结果"
             };
-            let show_management = management.is_some();
             let entries =
                 servers.into_iter().filter(|server| matches_name(&server.name)).map(|server| {
                     let preview_key = format!("global:{}", server.name);
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
                     let previewing = s.connecting.as_ref() == Some(&preview_key);
                     let inspected = inspect_for_server(s.inspect.as_ref(), &server.name);
-                    let sync = (show_management && controls_enabled).then(|| {
+                    let sync = sync_global.filter(|_| controls_enabled).map(|sync_global| {
                         let anchor = s.global_sync_menu
                             .filter(|(index, _)| *index == server.index)
                             .map(|(_, point)| point);
@@ -304,14 +302,9 @@ pub fn view_with_management<'a, Message: Clone + 'static>(
                     )
                 });
             content = content.push(search_toolbar(search.into(), actions.into()));
-            if let Some(management) = management {
-                content = content
-                    .push(settings_group_header(text(tr(locale, "全局 MCP 服务器")).size(16)))
-                    .push(server_list(locale, entries, empty))
-                    .push(management);
-            } else {
-                content = content.push(server_list(locale, entries, empty));
-            }
+            content = content
+                .push(settings_group_header(text(tr(locale, "全局 MCP 服务器")).size(16)))
+                .push(server_list(locale, entries, empty));
         }
         McpSettingsTab::Runtime => {
             let servers = s.inspect.as_ref().map_or(&[][..], |report| report.servers.as_slice());

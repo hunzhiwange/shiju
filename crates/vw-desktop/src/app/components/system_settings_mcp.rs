@@ -5,7 +5,7 @@ use crate::app::state::McpSettingsTab;
 use crate::app::{App, Message};
 use desktop_settings_mcp::page;
 use desktop_ui_controls::system_settings_common::settings_modal_overlay;
-use iced::{Element, widget::container};
+use iced::Element;
 fn event(value: page::McpMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(match value {
         page::McpMessage::TabSelected(v0) => McpMessage::TabSelected(v0),
@@ -77,7 +77,6 @@ pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
             "timeout",
             "第三方 MCP",
             "third-party mcp",
-            "应用绑定",
             "MCP 模板",
             "同步到第三方",
         ],
@@ -454,38 +453,15 @@ pub(crate) fn is_visible(app: &App) -> bool {
 
 pub(crate) fn reconcile(app: &mut App) {
     let visible = is_visible(app);
-    let context = visible
-        .then(|| crate::app::message::settings::mcp_management_list::context(app))
-        .flatten();
-    if app.mcp_settings.connection_form.as_ref().is_some_and(|form| {
-        !form.saving && (!visible || Some(&form.context) != context.as_ref())
-    }) {
-        app.mcp_settings.connection_form = None;
-    }
-    if app.mcp_settings.import.as_ref().is_some_and(|import| {
-        !import.importing && (!visible || Some(&import.context) != context.as_ref())
-    }) {
-        app.mcp_settings.import = None;
-    }
-    if !visible || app.mcp_settings.resync.context.as_ref() != context.as_ref() {
-        app.mcp_settings.resync.open = false;
-    }
-    if !visible {
-        app.mcp_settings.bindings.matrix.column_menu = None;
-    }
-    if !visible
-        || app.mcp_settings.modal_open()
-        || app.mcp_settings.page.loading
+    if !visible || app.mcp_settings.modal_open() || app.mcp_settings.page.loading
         || app.mcp_settings.page.transfer_pending
     {
         app.mcp_settings.page.global_sync_menu = None;
     }
-    if !visible || app.mcp_settings.actions.scope.as_ref() != context.as_ref() {
-        desktop_settings_mcp::management_probe::actions::invalidate(
-            &mut app.mcp_settings.actions,
-            None,
-            &[],
-        );
+    if app.mcp_settings.connection_form.as_ref().is_some_and(|draft| !draft.saving
+        && (!visible || form::context().as_ref() != Some(&draft.context)))
+    {
+        app.mcp_settings.connection_form = None;
     }
 }
 
@@ -501,14 +477,13 @@ pub(crate) fn open(app: &mut App) -> iced::Task<Message> {
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
-    page::view_with_management(
+    page::view_with_sync(
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
         configuration_transfer_actions(app),
         extensions_panel(app),
-        Some(management::view(app)),
-        |index| form::message(form::FormMessage::OpenGlobal(Some(index), true)),
+        Some(|index| form::message(form::FormMessage::OpenGlobal(Some(index), true))),
     )
 }
 
@@ -516,45 +491,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     if !is_visible(app) {
         return dialog;
     }
-    use desktop_settings_mcp::management_state::Overlay;
-    let current = crate::app::message::settings::mcp_management_list::context(app);
-    let diagnostics = crate::app::message::agent_apps_diagnostics::context(app);
-    let overlay = app.mcp_settings.overlay(current.as_ref(), diagnostics.as_ref());
-    if overlay == Overlay::Tools {
-        return settings_modal_overlay(
-            Some(dialog),
-            crate::app::message::settings::mcp_management_tools::message(
-                crate::app::message::settings::mcp_management_tools::ToolsMessage::Close,
-            ),
-            container(tools::card(app)).padding(12),
-        );
-    }
-
-    if overlay == Overlay::Resync {
-        return resync::overlay(app, dialog);
-    }
-    if overlay == Overlay::Import
-        && let Some(state) = &app.mcp_settings.import
-    {
-        return settings_modal_overlay(
-            Some(dialog),
-            crate::app::message::settings::mcp_management_import::message(
-                crate::app::message::settings::mcp_management_import::ImportMessage::Close,
-            ),
-            import::panel(app, state),
-        );
-    }
-    if overlay == Overlay::Form
-        && let Some(draft) = app.mcp_settings.connection_form.as_ref()
-        && current.as_ref() == Some(&draft.context)
+    if let Some(draft) = app.mcp_settings.connection_form.as_ref()
+        && form::context().as_ref() == Some(&draft.context)
     {
         return settings_modal_overlay(
             Some(dialog),
             form::message(form::FormMessage::Close),
-            connection::connection_form_panel(
+            desktop_settings_mcp::connection::connection_form_panel(
                 desktop_i18n::I18n::new(app.general_settings.desktop_locale),
                 draft,
-            ),
+            ).map(form::message),
         );
     }
     page::view_overlays(
@@ -563,27 +509,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         app.general_settings.desktop_locale,
         &app.appearance.app_theme,
         help,
-        management::overlays(app, dialog),
+        dialog,
     )
 }
 
-#[path = "system_settings_mcp_connection.rs"]
-mod connection;
 #[cfg(test)]
 #[path = "system_settings_mcp_tests.rs"]
 mod system_settings_mcp_tests;
-
-#[path = "system_settings_mcp_bindings.rs"]
-mod bindings;
-
-#[path = "system_settings_mcp_import.rs"]
-pub(crate) mod import;
-
-#[path = "system_settings_mcp_resync.rs"]
-pub(crate) mod resync;
-
-#[path = "system_settings_mcp_tools.rs"]
-pub(crate) mod tools;
-
-#[path = "system_settings_mcp_management.rs"]
-pub(crate) mod management;

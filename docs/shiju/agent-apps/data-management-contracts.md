@@ -36,7 +36,7 @@
 
 ## API、SDK、Iced 与任务协议
 
-现有 API 外层 `/v1`：供应商 `/app-providers`，MCP `/agent-apps/mcp`，偏好 `/agent-apps/preferences`，组合 `/agent-apps/project-profiles`。handler 注册在 `vw-agent/src/gateway/api/handlers/mod.rs`，路由通过 `gateway/router.rs` 与 `gateway/bootstrap.rs` 挂载；SDK 从 `vw-gateway-client/src/client/mod.rs` 注册，DTO 从 `vw-api-types/src/lib.rs` 注册。Iced 由 `vw-desktop/src/app/` 调 SDK，不直接持有数据库或运行迁入调度。
+现有 API 外层 `/v1`：供应商 `/app-providers`，全局 MCP 同步 `/global/mcp/options` 和 `/global/mcp/sync`，项目 ACP 定义 `/project-mcp/definitions`，偏好 `/agent-apps/preferences`，组合 `/agent-apps/project-profiles`。handler 注册在 `vw-agent/src/gateway/api/handlers/mod.rs`，路由通过 `gateway/router.rs` 与 `gateway/bootstrap.rs` 挂载；SDK 从 `vw-gateway-client/src/client/mod.rs` 注册，DTO 从 `vw-api-types/src/lib.rs` 注册。Iced 由 `vw-desktop/src/app/` 调 SDK，不直接持有数据库或运行迁入调度。
 
 数据管理模块、DTO、SDK 和对应 API **尚未由本任务实现**。后续固定接入到上述父模块；拟用 `/v1/agent-apps/data-management`，仅作为本计划保留前缀，不称为已注册接口。具体任务交付时定义显式识别、预览、执行、查询、取消、导出、创建/列举/重命名/删除/恢复备份操作，不允许任意 command、SQL、namespace 或文件路径后门。新增模块复用七类所有者，不另开永久 CC 库。
 

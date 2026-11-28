@@ -59,7 +59,6 @@ gateway-endpoint = { path = "../gateway-endpoint" }
 toml_edit = "0.22"
 tempfile = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
-gateway-mcp-probe = { path = "../gateway-mcp-probe" }
 gateway-app-failover = { path = "../gateway-app-failover" }
 desktop-app-launch = { path = "../desktop-app-launch" }
 desktop-account = { path = "../desktop-account" }

@@ -13,7 +13,8 @@ pub(crate) fn router() -> Router {
         .merge(super::agent_app_prompt_shared_import::router())
         .merge(super::agent_app_prompts_read::router())
         .merge(super::aggregation_omo::router())
-        .merge(super::mcp_management_read::router())
+        .merge(gateway_mcp::server::global_sync::router())
+        .merge(gateway_mcp::server::project_mcp::router())
         .merge(lifecycle::router())
         .merge(preferences::router())
         .merge(launch::router())
@@ -35,7 +36,7 @@ pub(crate) fn router() -> Router {
             .merge(apps_usage_refresh::router_with_policy(policy.clone()))
             .merge(apps_usage_script::router_with_policy(policy))
     };
-    router.layer(Extension(super::mcp_management_resync::Jobs::default()))
+    router
 }
 
 // Icon request handling is owned by gateway-agent-apps::icons.
@@ -46,8 +47,6 @@ mod read_tests;
 
 mod access;
 // Account termination authorization is owned by gateway-agent-apps.
-#[cfg(target_os = "macos")]
-pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};
 
 // Authorization handler host resolution lives in gateway-agent-apps.
 
@@ -94,53 +93,13 @@ mod usage_native;
 #[cfg(target_os = "macos")]
 mod apps_usage_script;
 
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use gateway_agent_apps::host_context::authorize_mcp_catalog_read;
-
-/// Write to the explicitly granted catalog scope on the requested host.
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_mcp_catalog_write;
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use gateway_agent_apps::host_context::{authorize_mcp_native_read, authorize_mcp_native_write};
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::{authorize_aggregation_read, authorize_aggregation_write, authorize_pi_directory};
 
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::{authorize_diagnostic_job, authorize_diagnostic_probe};
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecycle};
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_mcp_acp_read;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_skill_repos;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_claude_config;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_skill_inventory;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::{authorize_skill_install, authorize_skill_install_owner};
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_skill_import;
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_skill_bindings;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_skill_job;
 
 #[cfg(target_os = "macos")]
 #[path = "../hermes_dashboard.rs"]

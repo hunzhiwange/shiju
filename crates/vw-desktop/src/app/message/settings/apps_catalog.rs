@@ -424,7 +424,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 return Task::batch([
                     prompts,
                     crate::app::components::third_party_settings::ensure_agent_providers(app),
-                    crate::app::components::system_settings_mcp::management::refresh(app),
                     navigation,
                     crate::app::components::system_settings_apps::preferences::update(
                         app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,

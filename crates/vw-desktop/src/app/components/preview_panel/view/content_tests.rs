@@ -43,14 +43,16 @@ fn content_tree(app: &App) -> Tree {
 }
 
 #[test]
-fn content_shows_empty_selection_message_in_preview_screen() {
+fn content_shows_a_blank_editor_in_preview_screen() {
     let mut app = app();
     app.navigation_tabs.screen = Screen::Preview;
     app.navigation_tabs.active_preview_path = None;
 
-    let tree = content_tree(&app);
+    let blank_editor_tag = content_tree(&app).tag;
+    app.navigation_tabs.screen = Screen::Project;
+    app.file_manager.file_manager_show_changes = false;
 
-    assert!(tree.children.is_empty());
+    assert_ne!(content_tree(&app).tag, blank_editor_tag);
 }
 
 #[test]

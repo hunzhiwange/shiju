@@ -1,9 +1,6 @@
 //! Start diagnostics from authorized saved resources on their execution host.
 use {
-    agent_app_services::{
-        auth_accounts::AuthAccountStore,
-        mcp::network_probe::{self, McpHandshakeStartError},
-    },
+    agent_app_services::auth_accounts::AuthAccountStore,
     app_provider_services::AppProviderStore,
     agent_database::GlobalDatabase,
 };
@@ -20,8 +17,6 @@ use axum::{
 };
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use agent_app_services::mcp::probe_host::ProbeHost;
-use app_diagnostics_runtime::agent_apps_diagnostic_jobs::DiagnosticProbeError;
 use vw_agent_apps::{auth::copilot::CopilotAuth, diagnostics::endpoints};
 use {
     vw_api_app_diagnostics::DiagnosticEndpointCandidate,
@@ -43,14 +38,14 @@ use {
 #[derive(Clone)]
 pub struct PolicyFile(pub Option<PathBuf>);
 
-pub fn router<H: ProbeHost<Jobs = DiagnosticJobs, JobError = DiagnosticJobError, ProbeError = DiagnosticProbeError>>() -> Router {
-    router_with_policy::<H>(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
+pub fn router() -> Router {
+    router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 
-pub fn router_with_policy<H: ProbeHost<Jobs = DiagnosticJobs, JobError = DiagnosticJobError, ProbeError = DiagnosticProbeError>>(policy: Option<PathBuf>) -> Router {
+pub fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new()
         .route("/agent-apps/diagnostics/endpoint-candidates/query", post(endpoint_candidates))
-        .route("/agent-apps/diagnostics/jobs", post(submit::<H>))
+        .route("/agent-apps/diagnostics/jobs", post(submit))
         .route("/agent-apps/diagnostics/jobs/{id}", get(read_job))
         .route("/agent-apps/diagnostics/jobs/{id}/cancel", post(cancel_job))
         .layer(DefaultBodyLimit::max(32 * 1024))
@@ -88,10 +83,6 @@ async fn endpoint_candidates(
             policy.0.as_deref(),
             &headers,
             &scope,
-            &DiagnosticStartRequest::Speed {
-                provider_id: request.provider_id.clone(),
-                endpoint_ids: Vec::new(),
-            },
         )?;
         let database = match database {
             Some(Extension(database)) => database,
@@ -199,47 +190,17 @@ async fn job_request(
 }
 
 /// Existing diagnostics keep their original reports and request contract.
-async fn submit<H: ProbeHost<Jobs = DiagnosticJobs, JobError = DiagnosticJobError, ProbeError = DiagnosticProbeError>>(
-    policy: Extension<PolicyFile>,
-    tenant: Extension<TenantScope>,
-    database: Option<Extension<GlobalDatabase>>,
-    jobs: Option<Extension<DiagnosticJobs>>,
-    headers: HeaderMap,
-    query: Query<DiagnosticScopeQuery>,
-    request: Result<Json<DiagnosticStartRequest>, JsonRejection>,
-) -> Response {
-    submit_request::<H>(
-        policy,
-        tenant,
-        database,
-        jobs,
-        headers,
-        query,
-        request.map(|Json(request)| SubmissionRequest::Diagnostic(request)),
-    )
-    .await
-}
-
-pub enum SubmissionRequest {
-    Diagnostic(DiagnosticStartRequest),
-    McpConnectionChecks {
-        server_ids: Vec<vw_api_mcp_management::McpRecordId>,
-        generation: u64,
-    },
-}
-
-/// Both HTTP resources pass through the same whole-batch authorization and host resolution.
-pub async fn submit_request<H: ProbeHost<Jobs = DiagnosticJobs, JobError = DiagnosticJobError, ProbeError = DiagnosticProbeError>>(
+async fn submit(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     jobs: Option<Extension<DiagnosticJobs>>,
     headers: HeaderMap,
     Query(query): Query<DiagnosticScopeQuery>,
-    request: Result<SubmissionRequest, JsonRejection>,
+    request: Result<Json<DiagnosticStartRequest>, JsonRejection>,
 ) -> Response {
     let request = match request {
-        Ok(request) => request,
+        Ok(Json(request)) => request,
         Err(error) => {
             return failure(if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
                 StatusCode::PAYLOAD_TOO_LARGE
@@ -248,12 +209,9 @@ pub async fn submit_request<H: ProbeHost<Jobs = DiagnosticJobs, JobError = Diagn
             });
         }
     };
-    let (request, generation) = match request {
-        SubmissionRequest::Diagnostic(request) => (request, None),
-        SubmissionRequest::McpConnectionChecks { server_ids, generation } => {
-            (DiagnosticStartRequest::Mcp { server_ids }, Some(generation))
-        }
-    };
+    if matches!(&request, DiagnosticStartRequest::Mcp { .. }) {
+        return failure(StatusCode::GONE);
+    }
     let result = tokio::task::spawn_blocking(move || {
         let scope = DiagnosticScope {
             project: ProjectScope::new(tenant, query.project_id)
@@ -266,7 +224,6 @@ pub async fn submit_request<H: ProbeHost<Jobs = DiagnosticJobs, JobError = Diagn
             policy.0.as_deref(),
             &headers,
             &scope,
-            &request,
         )?;
         let jobs = jobs.ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0;
         let database = match database {
@@ -274,27 +231,6 @@ pub async fn submit_request<H: ProbeHost<Jobs = DiagnosticJobs, JobError = Diagn
             None => GlobalDatabase::for_home(&agent_paths::paths().home)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
-        if let DiagnosticStartRequest::Mcp { server_ids } = request {
-            return match generation {
-                Some(generation) => network_probe::start_connection_checks::<H>(
-                    &jobs, database, policy.0, &headers, scope, server_ids, generation,
-                ),
-                None => network_probe::start_handshakes::<H>(
-                    &jobs, database, policy.0, &headers, scope, server_ids,
-                ),
-            }
-            .map_err(|error| match error {
-                McpHandshakeStartError::Access(status) => status,
-                McpHandshakeStartError::Job(error) => job_status(error),
-                McpHandshakeStartError::Record(
-                    vw_api_mcp_management::McpFailureCode::PermissionDenied,
-                ) => StatusCode::FORBIDDEN,
-                McpHandshakeStartError::Record(
-                    vw_api_mcp_management::McpFailureCode::StorageUnavailable,
-                ) => StatusCode::SERVICE_UNAVAILABLE,
-                McpHandshakeStartError::Record(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            });
-        }
         let owner = DiagnosticJobOwner { scope, principal };
         match request {
             DiagnosticStartRequest::Speed { provider_id, endpoint_ids } => {
@@ -447,7 +383,7 @@ fn failure(status: StatusCode) -> Response {
         StatusCode::NOT_FOUND => "not_found",
         StatusCode::TOO_MANY_REQUESTS => "capacity_exceeded",
         StatusCode::SERVICE_UNAVAILABLE => "unavailable",
-        StatusCode::NOT_IMPLEMENTED => "unsupported_mode",
+        StatusCode::GONE | StatusCode::NOT_IMPLEMENTED => "unsupported_mode",
         _ => "invalid_input",
     };
     (

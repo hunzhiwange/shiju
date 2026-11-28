@@ -15,23 +15,11 @@ pub use credentials::McpExecutionConnection;
 #[cfg(target_os = "macos")]
 pub mod binding;
 #[cfg(target_os = "macos")]
-pub mod bulk;
-#[cfg(target_os = "macos")]
-pub mod import;
-#[cfg(target_os = "macos")]
-pub mod resync;
-#[cfg(target_os = "macos")]
 pub mod profile_slot;
 #[cfg(target_os = "macos")]
 pub use binding::McpBindingTarget;
-#[cfg(target_os = "macos")]
-pub use import::{McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource};
-#[cfg(target_os = "macos")]
-pub use resync::{McpResyncResult, McpResyncTargetResult, McpResyncTask, resync_targets};
 #[cfg(all(test, target_os = "macos"))]
 mod binding_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod bulk_tests;
 #[cfg(test)]
 mod catalog_create_tests;
 #[cfg(test)]
@@ -40,10 +28,6 @@ mod catalog_delete_tests;
 mod catalog_update_tests;
 #[cfg(test)]
 mod credentials_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod import_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod resync_tests;
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -85,6 +69,25 @@ impl McpCatalogStore {
         host: &str,
     ) -> Result<(Vec<McpCatalogRecord>, Vec<McpCliBinding>), McpFailureCode> {
         self.read_catalog(authorized_scope, Some(host))
+    }
+
+    /// Preserve ownership of a native entry synchronized by an older desktop version.
+    #[cfg(target_os = "macos")]
+    pub fn legacy_native_owners(
+        &self,
+        scope: &McpCatalogScope,
+        id: &str,
+        host: &str,
+    ) -> Result<Vec<vw_api_app_identity::AppId>, McpFailureCode> {
+        let (tenant, namespace) = catalog_create::catalog_location(scope)?;
+        match self.load_entry(tenant, &namespace, id) {
+            Ok((_, StoredCatalogEntry::Active(record))) => Ok(record.bindings.into_iter()
+                .filter(|binding| binding.target.target_host_id == host
+                    && binding.native_status == vw_api_mcp_management::McpNativeStatus::Present)
+                .map(|binding| binding.target.app_id).collect()),
+            Ok(_) | Err(McpFailureCode::NotFound) => Ok(Vec::new()),
+            Err(error) => Err(error),
+        }
     }
 
     fn read_catalog(
@@ -158,24 +161,8 @@ pub mod runtime;
 pub mod reviewed_stdio;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod revocation;
-#[cfg(not(target_arch = "wasm32"))]
-mod probe_snapshot;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod connectivity;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod connection_runtime;
 
 pub mod acp_mount;
-
-#[cfg(target_os = "macos")]
-pub mod network_probe;
-#[cfg(target_os = "macos")]
-pub mod probe_host;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod probe_jobs;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod probe_jobs_host;
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_migration_48_tests;

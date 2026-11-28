@@ -3,6 +3,7 @@ use iced::widget::Id;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
 pub struct State {
+    pub blank_editor: iced::widget::text_editor::Content,
     pub editor_metrics_preview: crate::metrics::MetricsPreview,
     pub editor_config_persistence: crate::persistence::ConfigPersistence,
     /// 预览滚动容器 ID
@@ -83,6 +84,7 @@ pub struct State {
 impl State {
     pub fn new(system: &config_ui::AppSystemSettingsConfig) -> Self {
         Self {
+            blank_editor: iced::widget::text_editor::Content::new(),
             editor_metrics_preview: Default::default(),
             editor_config_persistence: Default::default(),
             preview_scroll_id: iced::widget::Id::new("preview"),

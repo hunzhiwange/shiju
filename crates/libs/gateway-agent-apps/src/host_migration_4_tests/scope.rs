@@ -48,7 +48,7 @@ async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> 
         },
         principal: "member".into(),
     };
-    let app = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+    let app = crate::agent_apps_diagnostics::router_with_policy(Some(policy.clone()))
         .layer(Extension(tenant))
         .layer(Extension(jobs.clone()));
     let request = |id: &str, cancel: bool, project: &str, host: &str, app_id: &str, _token: &str| {
@@ -57,7 +57,7 @@ async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> 
             .body(Body::empty()).unwrap()
     };
     let foreign_tenant_app =
-        crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+        crate::agent_apps_diagnostics::router_with_policy(Some(policy.clone()))
             .layer(Extension(TenantScope::new("platform", "foreign-company")?))
             .layer(Extension(jobs.clone()));
     let gate = Arc::new(tokio::sync::Semaphore::new(0));

@@ -28,16 +28,11 @@ agent-paths = { path = "../agent-paths" }
 app-access-service = { path = "../app-access-service" }
 axum = { version = "0.8.8", features = ["json", "query"] }
 tokio = { version = "1", features = ["rt", "sync"] }
-uuid = { version = "1.11", features = ["v4", "js"] }
-vw-api-app-operations = { path = "../api-app-operations" }
 vw-api-transport = { path = "../api-transport" }
-vw-api-task = { path = "../api-task" }
 vw-agent-apps = { path = "../../vw-agent-apps" }
 anyhow = "1"
 gateway-types = { path = "../gateway-types" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 agent-config = { path = "../agent-config" }
 app-settings-store = { path = "../app-settings-store" }
-vw-api-app-auth = { path = "../api-app-auth" }

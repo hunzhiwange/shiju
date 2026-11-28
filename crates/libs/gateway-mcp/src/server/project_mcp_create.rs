@@ -7,19 +7,14 @@ use axum::{
 };
 use vw_agent_apps::mcp::catalog::McpCatalogDraft;
 use {
-    vw_api_transport::ProjectScope,
-    vw_api_transport::TenantScope,
-    vw_api_mcp_management::McpCatalogRecord,
-    vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpCreateRequest,
-    vw_api_mcp_management::McpFailureCode,
+    vw_api_mcp_management::McpCatalogRecord, vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpCreateRequest, vw_api_mcp_management::McpFailureCode,
+    vw_api_transport::ProjectScope, vw_api_transport::TenantScope,
 };
 
 use super::{
     agent_apps,
-    mcp_management_read::{
-        McpHttpError, PolicyFile, access_error, failure, open_database, unavailable,
-    },
+    project_mcp::{McpHttpError, PolicyFile, access_error, failure, open_database, unavailable},
 };
 use {agent_app_services::mcp::McpCatalogStore, agent_database::GlobalDatabase};
 
@@ -54,7 +49,7 @@ pub(super) async fn create_catalog_record(
                 scope: ProjectScope::new(tenant, project_id)
                     .map_err(|_| access_error(StatusCode::BAD_REQUEST))?,
             },
-            None => McpCatalogScope::Tenant { scope: tenant },
+            None => return Err(access_error(StatusCode::BAD_REQUEST)),
         };
         agent_apps::authorize_mcp_catalog_write(
             policy.0.as_deref(),

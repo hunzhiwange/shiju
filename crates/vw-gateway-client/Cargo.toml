@@ -29,10 +29,6 @@ gateway-workflow = { path = "../libs/gateway-workflow" }
 gateway-voice = { path = "../libs/gateway-voice" }
 gateway-pty = { path = "../libs/gateway-pty" }
 gateway-inference = { path = "../libs/gateway-inference" }
-gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution" }
-gateway-mcp-read = { path = "../libs/gateway-mcp-read" }
-gateway-mcp-write = { path = "../libs/gateway-mcp-write" }
-gateway-mcp-probe = { path = "../libs/gateway-mcp-probe" }
 gateway-mcp = { path = "../libs/gateway-mcp" }
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native" }
 gateway-aggregation = { path = "../libs/gateway-aggregation" }

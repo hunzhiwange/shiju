@@ -57,7 +57,6 @@ pub enum Effect {
     Inspect,
     InspectServer { key: String, name: String },
     RefreshAll,
-    RefreshAllAndCatalog,
     Save(Value),
     SaveOverrides(Vec<Value>),
 }
@@ -124,7 +123,7 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             app.save_error = None;
             app.inspect_error = None;
             app.status_message = None;
-            Effect::RefreshAllAndCatalog
+            Effect::RefreshAll
         }
         Message::Loaded(result) => {
             app.global_sync_menu = None;
@@ -502,10 +501,3 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
 }
 
 // Managed definitions share the configuration domain; gateway clients retain authorization.
-pub use crate::management_bindings_update as bindings;
-pub use crate::management_form_update as form;
-pub use crate::management_import_update as import;
-pub use crate::management_list as catalog;
-pub use crate::management_probe as probe;
-pub use crate::management_resync as resync;
-pub use crate::management_tools as tools;

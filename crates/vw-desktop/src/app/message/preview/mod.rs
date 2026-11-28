@@ -58,6 +58,14 @@ pub(crate) fn dismiss_preview_popup_menus(app: &mut App) {
 /// | LSP 相关操作（仅非 WASM） | [`editor::update`] |
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
+        PreviewMessage::BlankEditorAction(action) => {
+            if app.navigation_tabs.screen == crate::app::Screen::Preview
+                && app.navigation_tabs.preview_tabs.is_empty()
+            {
+                app.preview_state.blank_editor.perform(action);
+            }
+            Task::none()
+        }
         PreviewMessage::OpenStandalone => tab::open_active_in_standalone(app),
         #[cfg(not(target_arch = "wasm32"))]
         PreviewMessage::SaveFile

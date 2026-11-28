@@ -1,18 +1,10 @@
 #[derive(Debug, Clone)]
 #[derive(Default)]
 pub struct McpSettingsState {
-    pub actions: crate::management_probe::actions::State,
-    pub tools: crate::management_tools::ToolsState,
-    pub diagnostics: desktop_apps_ui::agent_apps_diagnostics::mcp_state::McpState,
-    pub catalog: crate::management_list::CatalogState,
-    pub resync: crate::management_resync::ResyncState,
-    pub bindings: crate::management_bindings::BindingsState,
-    pub import: Option<crate::management_import::ImportState>,
     pub connection_form: Option<crate::management_form::Draft>,
     pub page: crate::state::State,
     pub extensions: crate::extensions::State,
 }
-
 
 // Preserve existing callers until the update slices migrate; state has one owner.
 impl std::ops::Deref for McpSettingsState {
@@ -29,48 +21,9 @@ impl std::ops::DerefMut for McpSettingsState {
 
 impl McpSettingsState {
     pub fn mutating(&self) -> bool {
-        self.page.saving
-            || self.bindings.running
-            || self.connection_form.as_ref().is_some_and(|d| d.saving)
+        self.page.saving || self.connection_form.as_ref().is_some_and(|d| d.saving)
     }
     pub fn modal_open(&self) -> bool {
-        self.import.is_some() || self.connection_form.is_some()
+        self.connection_form.is_some()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Overlay {
-    Tools,
-    Resync,
-    Import,
-    Form,
-    Page,
-}
-impl McpSettingsState {
-    pub fn overlay(
-        &self,
-        current: Option<&crate::management_context::Context>,
-        diagnostics: Option<&crate::diagnostic_context::Context>,
-    ) -> Overlay {
-        if crate::management_tools::visible(&self.tools, diagnostics).is_some() {
-            return Overlay::Tools;
-        }
-        if crate::management_resync::visible(&self.resync, current).is_some_and(|s| s.open) {
-            return Overlay::Resync;
-        }
-        if crate::management_import::visible(self.import.as_ref(), current).is_some() {
-            return Overlay::Import;
-        }
-        if self.connection_form.as_ref().is_some_and(|form| Some(&form.context) == current) {
-            return Overlay::Form;
-        }
-        Overlay::Page
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub enum ViewEvent {
-    Matrix(crate::management_bindings::matrix::ViewMessage),
-    Menu(crate::management_probe::actions::MenuMessage),
 }

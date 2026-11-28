@@ -132,6 +132,7 @@ async fn open_prompt_folder(path: String) -> Result<(), &'static str> {
         }
         let folder = path.parent().filter(|folder| folder.is_dir())
             .and_then(Path::to_str).ok_or("所在文件夹不存在")?;
-        crate::update::storage_modal::open_local(&home, folder).map_err(|_| "无法打开所在文件夹")
+        desktop_provider_apps::message::paths::open_local(&home, folder)
+            .map_err(|_| "无法打开所在文件夹")
     }).await.map_err(|_| "打开文件夹任务失败")?
 }

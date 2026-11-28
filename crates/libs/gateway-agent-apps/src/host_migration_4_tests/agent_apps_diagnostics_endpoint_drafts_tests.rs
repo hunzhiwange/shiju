@@ -53,7 +53,7 @@ async fn diagnostic_endpoint_draft_reference_executes_without_save() -> anyhow::
     let access = json!({"principals":[{"id":"member","token_sha256":hex::encode(Sha256::digest("fixture-diagnostic-member-token-00001")),"grants":[grant.clone()]},{"id":"other","token_sha256":hex::encode(Sha256::digest("fixture-diagnostic-other-token-000002")),"grants":[grant]}],"hosts":[{"id":"host","binding":"local","online":true,"home":root.path(),"applications":root.path(),"search_paths":[]}]});
     std::fs::write(&policy, access.to_string())?;
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600))?;
-    let app = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+    let app = crate::agent_apps_diagnostics::router_with_policy(Some(policy.clone()))
         .layer(Extension(tenant.clone()))
         .layer(Extension(database.clone()))
         .layer(Extension(jobs));

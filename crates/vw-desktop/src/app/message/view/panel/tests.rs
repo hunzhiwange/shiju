@@ -54,19 +54,18 @@ fn app_message_routes_to_apps_update() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn file_selected_from_apps_opens_in_standalone_preview() {
+fn file_editor_entry_opens_with_no_file_tabs() {
+    use desktop_navigation::panel::tabs::EDITOR_TAB_ID;
+
     let mut app = test_app();
     let _ = crate::app::message::view::update(&mut app, ViewMessage::OpenApps);
-    let path = std::env::temp_dir().join("editor-entry.md");
-    let path = path.to_string_lossy().into_owned();
-
-    let _ = crate::app::message::view::update(
-        &mut app,
-        ViewMessage::FileEditorFileSelected(path.clone()),
-    );
+    let _ = crate::app::message::view::update(&mut app, ViewMessage::OpenFileEditor);
 
     assert_eq!(app.navigation_tabs.screen, Screen::Preview);
-    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path.as_str()));
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(EDITOR_TAB_ID));
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+    assert!(app.navigation_tabs.active_preview_path.is_none());
+    assert!(app.preview_state.blank_editor.text().is_empty());
 }
 
 #[test]

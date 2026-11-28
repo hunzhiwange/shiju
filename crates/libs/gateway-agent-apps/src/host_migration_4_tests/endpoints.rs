@@ -58,7 +58,7 @@ async fn diagnostic_endpoints_api_is_read_only_and_scoped() -> anyhow::Result<()
             "applications":root.path(),"search_paths":[]}]
     }).to_string())?;
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600))?;
-    let app = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+    let app = crate::agent_apps_diagnostics::router_with_policy(Some(policy.clone()))
         .layer(Extension(tenant.clone()))
         .layer(Extension(database.clone()));
     let request = |body: Value, project: &str, host: &str, app_id: &str, token: &str| {
@@ -100,7 +100,7 @@ async fn diagnostic_endpoints_api_is_read_only_and_scoped() -> anyhow::Result<()
             expected
         );
     }
-    let foreign_tenant = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
+    let foreign_tenant = crate::agent_apps_diagnostics::router_with_policy(Some(policy.clone()))
         .layer(Extension(TenantScope::new("platform", "foreign")?))
         .layer(Extension(database.clone()));
     assert_eq!(

@@ -1,6 +1,5 @@
 //! macOS acceptance through the production HTTP router and SDK, without a desktop.
 use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
-use agent_app_services::mcp::McpCatalogStore;
 use app_provider_services::AppProviderStore;
 use app_diagnostics_runtime::agent_apps_diagnostic_jobs::DiagnosticJobs;
 use app_routing_services::failover_runtime::FailoverRuntime;
@@ -25,7 +24,6 @@ use vw_agent_apps::{
         circuit_breaker::AttemptOutcome,
         health::{HealthAccount, HealthKey},
     },
-    mcp::catalog::McpCatalogDraft,
 };
 use vw_api_app_identity::AppId;
 use vw_api_app_diagnostics::*;
@@ -34,9 +32,6 @@ use vw_api_app_provider_base::AppProviderWrite;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TenantScope;
-use vw_api_mcp_management::McpCatalogScope;
-use vw_api_mcp_management::McpConnectionDefinition;
-use vw_api_mcp_management::McpRecordId;
 use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_settings::AgentAppsSettingsError, vw_gateway_client::GatewayClient}};
 
 const TOKEN: &str = "fixture-macos-diagnostic-member-00001";
@@ -101,20 +96,19 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     };
     let hang = Arc::new(AtomicBool::new(false));
     let requests = Arc::new(AtomicUsize::new(0));
-    let calls = Arc::new(AtomicUsize::new(0));
     let (entered, mut arrivals) = tokio::sync::mpsc::unbounded_channel();
     let (closed, mut disconnects) = tokio::sync::mpsc::unbounded_channel();
     let upstream = TcpListener::bind("127.0.0.1:0").await?;
     let url = format!("http://{}/v1", upstream.local_addr()?);
     let mut servers = Servers(Vec::new());
-    let (hanging, counted, tool_calls) = (hang.clone(), requests.clone(), calls.clone());
+    let (hanging, counted) = (hang.clone(), requests.clone());
     servers.0.push(tokio::spawn(async move {
         let mut peers = tokio::task::JoinSet::new();
         loop {
             tokio::select! {
                 accepted = upstream.accept() => {
                     let (socket, _) = accepted.unwrap();
-                    let (entered, closed, hang, requests, calls) = (entered.clone(), closed.clone(), hanging.clone(), counted.clone(), tool_calls.clone());
+                    let (entered, closed, hang, requests) = (entered.clone(), closed.clone(), hanging.clone(), counted.clone());
                     peers.spawn(async move {
                         let mut socket = BufReader::new(socket);
                         let mut line = String::new();
@@ -132,7 +126,6 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
                         let mut bytes = vec![0; length];
                         socket.read_exact(&mut bytes).await.unwrap();
                         let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-                        if body["method"] == "tools/call" { calls.fetch_add(1, Ordering::SeqCst); }
                         requests.fetch_add(1, Ordering::SeqCst);
                         if hang.load(Ordering::SeqCst) {
                             entered.send(()).unwrap();
@@ -140,11 +133,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
                             closed.send(()).unwrap();
                             return;
                         }
-                        let (status, content_type, payload) = if body["method"] == "initialize" {
-                            (200, "application/json", json!({"jsonrpc":"2.0","id":body["id"],"result":{"protocolVersion":"2025-03-26","capabilities":{},"serverInfo":{"name":"controlled-macos","version":"1"}}}).to_string())
-                        } else if body["method"].is_string() {
-                            (202, "application/json", String::new())
-                        } else if body["stream"] == true {
+                        let (status, content_type, payload) = if body["stream"] == true {
                             (200, "text/event-stream", super::stream_fixtures::samples().into_iter().find(|(protocol, _, _)| *protocol == "anthropic").unwrap().2.to_owned())
                         } else if method == "POST" {
                             assert!(body.get("tools").is_none(), "model probes cannot carry tools");
@@ -173,49 +162,8 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
             },
         )
         .map_err(anyhow::Error::msg)?;
-    let catalog = McpCatalogStore::new(database.clone()).unwrap();
-    let mut permits = Vec::new();
-    for mode in ["http", "normal", "cancel"] {
-        let connection = if mode == "http" {
-            McpConnectionDefinition::StreamableHttp {
-                url: format!("{url}/mcp"),
-                headers: Default::default(),
-            }
-        } else {
-            McpConnectionDefinition::Stdio {
-                command: "/bin/sh".into(),
-                args: vec!["-c".into(), STDIO.into(), "fixture".into(), mode.into()],
-                env: Default::default(),
-                cwd: None,
-            }
-        };
-        let digest = hex::encode(Sha256::digest(serde_json::to_vec(&connection)?));
-        let stored = catalog
-            .create(
-                &McpCatalogScope::Project { scope: project.clone() },
-                McpCatalogDraft {
-                    id: mode.into(),
-                    name: None,
-                    description: None,
-                    homepage: None,
-                    documentation: None,
-                    tags: vec![],
-                    connection,
-                },
-            )
-            .unwrap();
-        let mut permit = json!({"project_id":"project","app_id":"claude","record_id":mode,"connection_revision":stored.connection_revision});
-        if mode == "http" {
-            permit["endpoint_sha256"] =
-                json!(hex::encode(Sha256::digest(format!("{url}/mcp").as_bytes())));
-        } else {
-            permit["stdio_sha256"] = json!(digest);
-            permit["stdio_workspace"] = json!(root.path());
-        }
-        permits.push(permit);
-    }
     let policy_file = root.path().join("access.json");
-    std::fs::write(&policy_file, json!({"principals":[{"id":"member","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"platform","company_id":"company","host_id":"host","provider_config_read":true,"routing_manage":true,"routing_apps":[{"project_id":"project","app_id":"claude"}],"mcp_probe":permits}]}],"hosts":[{"id":"host","binding":"local","online":true,"home":root.path(),"applications":root.path(),"search_paths":[],"credential_root":root.path()}]}).to_string())?;
+    std::fs::write(&policy_file, json!({"principals":[{"id":"member","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"platform","company_id":"company","host_id":"host","provider_config_read":true,"routing_manage":true,"routing_apps":[{"project_id":"project","app_id":"claude"}]}]}],"hosts":[{"id":"host","binding":"local","online":true,"home":root.path(),"applications":root.path(),"search_paths":[],"credential_root":root.path()}]}).to_string())?;
     std::fs::set_permissions(&policy_file, std::fs::Permissions::from_mode(0o600))?;
     let jobs = DiagnosticJobs::open(root.path()).unwrap();
     let runtime = Arc::new(FailoverRuntime::default());
@@ -241,7 +189,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         .record(AttemptOutcome::ProviderFailure, observed_at);
     let before = runtime.health.snapshot(&health_key, &policy, observed_at);
     let router = Router::new()
-        .nest("/v1", crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy_file)))
+        .nest("/v1", crate::agent_apps_diagnostics::router_with_policy(Some(policy_file)))
         .layer(Extension(tenant.clone()))
         .layer(Extension(database))
         .layer(Extension(jobs.clone()))
@@ -271,7 +219,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         .expect("saved endpoint must be discoverable through the SDK")
         .id
         .clone();
-    let mut probes = vec![
+    let probes = [
         DiagnosticStartRequest::Reachability { provider_id: "provider".into() },
         DiagnosticStartRequest::Speed {
             provider_id: "provider".into(),
@@ -286,8 +234,6 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
             provider_id: "provider".into(),
             model_id: "fixture-model".into(),
         },
-        DiagnosticStartRequest::Mcp { server_ids: vec![McpRecordId("http".into())] },
-        DiagnosticStartRequest::Mcp { server_ids: vec![McpRecordId("normal".into())] },
     ];
     let foreign = DiagnosticScopeQuery { project_id: "foreign".into(), ..scope.clone() };
     for probe in &probes {
@@ -301,7 +247,6 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         rejected(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, probe, "invalid-token").await.unwrap_err(), 401);
     }
     assert_eq!(requests.load(Ordering::SeqCst), 0);
-    assert!(!root.path().join("normal.pid").exists());
     let mut completed = Vec::new();
     for probe in &probes {
         let start_count = requests.load(Ordering::SeqCst);
@@ -312,55 +257,21 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         let result = serde_json::to_value(done.results.as_ref().unwrap())?;
         assert_eq!(result[0]["report"]["outcome"]["status"], "succeeded", "{result}");
         assert_eq!(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
-        if !matches!(probe, DiagnosticStartRequest::Mcp { .. }) {
-            assert_eq!(
-                requests.load(Ordering::SeqCst) - start_count,
-                if matches!(probe, DiagnosticStartRequest::Speed { .. }) { 2 } else { 1 }
-            );
-        }
+        assert_eq!(
+            requests.load(Ordering::SeqCst) - start_count,
+            if matches!(probe, DiagnosticStartRequest::Speed { .. }) { 2 } else { 1 }
+        );
         eprintln!("controlled {probe:?}: succeeded, completed=1/1");
         completed.push(job);
     }
-    probes[5] = DiagnosticStartRequest::Mcp { server_ids: vec![McpRecordId("cancel".into())] };
     hang.store(true, Ordering::SeqCst);
-    for (index, probe) in probes.iter().enumerate() {
+    for probe in &probes {
         let job = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_start(&scope, probe, TOKEN).await?;
-        let pids = if index == 5 {
-            Some(
-                tokio::time::timeout(Duration::from_secs(5), async {
-                    loop {
-                        let read = |suffix| {
-                            std::fs::read_to_string(root.path().join(format!("cancel.{suffix}")))
-                                .ok()
-                                .and_then(|s| s.trim().parse::<i32>().ok())
-                        };
-                        if let (Some(pid), Some(child)) = (read("pid"), read("child"))
-                            && root
-                                .path()
-                                .join("cancel.requests")
-                                .metadata()
-                                .is_ok_and(|m| m.len() > 0)
-                        {
-                            break (pid, child);
-                        }
-                        tokio::time::sleep(Duration::from_millis(10)).await;
-                    }
-                })
-                .await?,
-            )
-        } else {
-            tokio::time::timeout(Duration::from_secs(5), arrivals.recv()).await?.unwrap();
-            None
-        };
+        tokio::time::timeout(Duration::from_secs(5), arrivals.recv()).await?.unwrap();
         let running = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_status(&scope, &job.task_id, TOKEN).await?;
         assert_eq!(running.state, DiagnosticJobState::Running {});
         assert_eq!(running.progress.completed, 0);
         rejected(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&foreign, &job.task_id, TOKEN).await.unwrap_err(), 403);
-        if let Some((pid, child)) = pids {
-            // SAFETY: signal zero observes only the fixture's recorded process IDs.
-            assert!(unsafe { libc::kill(pid, 0) == 0 && libc::kill(child, 0) == 0 });
-            eprintln!("controlled stdio before cancel: leader={pid}, child={child}, alive");
-        }
         let cancelling = GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?;
         assert!(matches!(
             cancelling.state,
@@ -371,18 +282,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         assert_eq!(done.progress.completed, 0);
         assert_eq!(done.results, Some(vec![]));
         assert_eq!(GatewayAppDiagnosticsClient::new(client.transport().clone()).diagnostic_cancel(&scope, &job.task_id, TOKEN).await?, done);
-        if let Some((pid, child)) = pids {
-            tokio::time::timeout(Duration::from_secs(5), async {
-                // SAFETY: signal zero observes only the fixture's recorded process IDs.
-                while unsafe { libc::kill(pid, 0) == 0 || libc::kill(child, 0) == 0 } {
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-            })
-            .await?;
-            eprintln!("controlled stdio after cancel: leader={pid}, child={child}, exited");
-        } else {
-            tokio::time::timeout(Duration::from_secs(5), disconnects.recv()).await?.unwrap();
-        }
+        tokio::time::timeout(Duration::from_secs(5), disconnects.recv()).await?.unwrap();
         let checkpoint: Value =
             serde_json::from_slice(&std::fs::read(root.path().join("diagnostics.json"))?)?;
         assert!(
@@ -419,13 +319,6 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         tokio::time::timeout(Duration::from_secs(5), disconnects.recv()).await?.unwrap();
     }
     assert!(arrivals.try_recv().is_err(), "queued cancellation must not issue a request");
-    assert_eq!(calls.load(Ordering::SeqCst), 0);
-    for mode in ["normal", "cancel"] {
-        assert!(
-            !std::fs::read_to_string(root.path().join(format!("{mode}.requests")))?
-                .contains("tools/call")
-        );
-    }
     assert_eq!(
         runtime.health.snapshot(&health_key, &policy, observed_at),
         before,
@@ -444,7 +337,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         404,
     );
     eprintln!(
-        "controlled acceptance: six successes, six active cancellations, queued cancellation, three permits reusable, tools/call=0, health unchanged, expired GET/POST=404"
+        "controlled acceptance: four successes, four active cancellations, queued cancellation, three permits reusable, health unchanged, expired GET/POST=404"
     );
     for task in servers.0.drain(..) {
         task.abort();
@@ -452,22 +345,3 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
     }
     Ok(())
 }
-
-const STDIO: &str = r#"
-printf '%s\n' "$$" > "$1.pid"
-/bin/sleep 120 &
-printf '%s\n' "$!" > "$1.child"
-while IFS= read -r line; do
-    printf '%s\n' "$line" >> "$1.requests"
-    case "$line" in
-        *'"method":"initialize"'*)
-            if [ "$1" = cancel ]; then wait; fi
-            id=${line#*\"id\":}
-            id=${id%%,*}
-            id=${id%%\}*}
-            printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":"2025-03-26","capabilities":{},"serverInfo":{"name":"controlled-stdio","version":"1"}}}\n' "$id"
-            ;;
-    esac
-done
-wait
-"#;

@@ -22,7 +22,7 @@ use {
 };
 
 use super::{
-    McpBindingTarget, McpCatalogStore, McpImportOutcome, McpImportSource,
+    McpBindingTarget, McpCatalogStore,
     catalog_create_tests::{http_draft, with_database},
 };
 use crate::auth_accounts::AuthAccountStore;
@@ -70,7 +70,7 @@ fn cc_mcp_t24_deleted_binding_revokes_native_entry() -> anyhow::Result<()> {
         fs::create_dir(&directory)?;
         let path = directory.join("config.toml");
         let original = "[mcp_servers.managed]\ncommand = \"fixture\"\n[mcp_servers.other]\ncommand = \"other\"\n";
-        fs::write(&path, original)?;
+        fs::write(&path, "[mcp_servers.other]\ncommand = \"other\"\n")?;
         let scope = McpCatalogScope::Tenant { scope: TenantScope::new("platform", "company")? };
         let catalog = McpCatalogStore::new(database.clone()).unwrap();
         let (installation, app) = installed(home.path(), AppId::Codex, "codex")?;
@@ -81,19 +81,20 @@ fn cc_mcp_t24_deleted_binding_revokes_native_entry() -> anyhow::Result<()> {
             source,
             transactions: &transactions,
         };
-        let reports = catalog
-            .import_from_apps(&scope, &[McpImportSource { target: app.clone(), native: source }]);
-        let Ok(McpImportOutcome::Added(record)) = &reports[0]
-            .entries
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|entry| entry.id.as_ref().is_some_and(|id| id.0 == "managed"))
-            .unwrap()
-            .outcome
-        else {
-            panic!("managed fixture must be imported");
+        let mut draft = http_draft("managed", "fixture");
+        draft.connection = McpConnectionDefinition::Stdio {
+            command: "fixture".into(),
+            args: Vec::new(),
+            env: Default::default(),
+            cwd: None,
         };
+        let created = catalog.create(&scope, draft).unwrap();
+        let accounts = AuthAccountStore::new(database.clone(), private.path()).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        let record = runtime.block_on(catalog.set_app_binding(
+            &scope, &created.record, &target, true, &accounts, |_, _| None,
+        )).unwrap();
+        assert_eq!(record.native_outcome, McpDistributionOutcome::Applied);
         assert_eq!(catalog.delete(&scope, &record.record).unwrap().len(), 1);
 
         let unrelated =
@@ -359,91 +360,6 @@ fn cc_mcp_t24_binding_requires_credential_permission_before_sse_projection() -> 
             assert!(!text.contains(REFRESH));
         }
         assert_eq!(listener.accept().unwrap_err().kind(), ErrorKind::WouldBlock);
-        Ok(())
-    })
-}
-
-#[test]
-fn cc_mcp_t24_imported_disabled_binding_is_reenabled_with_the_current_definition()
--> anyhow::Result<()> {
-    with_database(|database| {
-        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        let home = tempfile::tempdir()?;
-        let private = private_root()?;
-        let transactions =
-            ProviderTransactions::new(private.path(), ExecutionHostId::new("host").unwrap())
-                .unwrap();
-        let accounts = AuthAccountStore::new(database.clone(), private.path()).unwrap();
-        let catalog = McpCatalogStore::new(database).unwrap();
-        let scope = McpCatalogScope::Tenant { scope: TenantScope::new("platform", "company")? };
-        let (installation, app) = installed(home.path(), AppId::OpenCode, "opencode")?;
-        let source = NativeMcpSource::HostHome(home.path());
-        let target = McpBindingTarget {
-            target: &app,
-            installation: &installation,
-            source,
-            transactions: &transactions,
-        };
-        let path = home.path().join(".config/opencode/opencode.jsonc");
-        fs::create_dir_all(path.parent().unwrap())?;
-        let before =
-            r#"{"mcp":{"managed":{"type":"local","command":["fixture"],"enabled":false}}}"#;
-        fs::write(&path, before)?;
-        let report = catalog
-            .import_from_apps(&scope, &[McpImportSource { target: app.clone(), native: source }]);
-        let Ok(McpImportOutcome::Added(record)) = &report[0].entries.as_ref().unwrap()[0].outcome
-        else {
-            panic!("disabled fixture must be imported");
-        };
-        let edited = catalog
-            .update_connection(
-                &scope,
-                &record.record,
-                McpConnectionDefinition::Stdio {
-                    command: "replacement".into(),
-                    args: vec!["argument".into()],
-                    env: Default::default(),
-                    cwd: None,
-                },
-            )
-            .unwrap();
-        let applied = runtime
-            .block_on(catalog.set_app_binding(
-                &scope,
-                &edited.record,
-                &target,
-                true,
-                &accounts,
-                |_, _| None,
-            ))
-            .unwrap();
-        assert_eq!(applied.native_outcome, McpDistributionOutcome::Applied);
-        let native: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path)?)?;
-        assert_eq!(
-            native["mcp"]["managed"]["command"],
-            serde_json::json!(["replacement", "argument"])
-        );
-        assert_eq!(native["mcp"]["managed"]["enabled"], true);
-
-        let disabled = runtime
-            .block_on(catalog.set_app_binding(
-                &scope,
-                &applied.record,
-                &target,
-                false,
-                &accounts,
-                |_, _| None,
-            ))
-            .unwrap();
-        assert_eq!(disabled.native_outcome, McpDistributionOutcome::Applied);
-        let native: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path)?)?;
-        assert_eq!(native["mcp"]["managed"]["enabled"], false);
-        let deleted = catalog.delete(&scope, &disabled.record).unwrap();
-        assert_eq!(deleted[0].binding.native_status, McpNativeStatus::Present);
-        let revoked = catalog.revoke_app_binding(&scope, &disabled.record, &target).unwrap();
-        assert_eq!(revoked.outcome, Some(Ok(())));
-        let native: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path)?)?;
-        assert!(native["mcp"].get("managed").is_none());
         Ok(())
     })
 }

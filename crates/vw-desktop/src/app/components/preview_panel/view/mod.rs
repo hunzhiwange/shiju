@@ -68,7 +68,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         active_path: app.navigation_tabs.active_preview_path.as_deref(), project_path: app.navigation_tabs.project_path.as_deref(),
         read_only_title: tab.filter(|tab| tab.read_only).map(|tab| tab.title.as_str()),
         show_fullscreen_controls: show_fullscreen_controls(app), fullscreen: app.git.git_diff_fullscreen,
-        show_changes: app.file_manager.file_manager_show_changes, show_context_menu: app.preview_state.show_preview_context_menu,
+        show_changes: app.navigation_tabs.screen != Screen::Preview && app.file_manager.file_manager_show_changes,
+        show_context_menu: app.preview_state.show_preview_context_menu,
         context_menu_pos: app.preview_state.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.general_settings.desktop_locale),
     }, ViewParts {
         header_tabs: build_header_tabs(app).map(ViewMessage::External),

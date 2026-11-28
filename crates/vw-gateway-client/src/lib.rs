@@ -27,7 +27,6 @@ pub use vw_api_types::cli_workbench;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::media_api as media;
 pub use client::project_profile_api;
-pub use client::mcp_management_distribution;
 mod endpoint;
 mod http;
 mod session;

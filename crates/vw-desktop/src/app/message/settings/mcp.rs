@@ -78,9 +78,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     }
     let local = match message {
-        McpMessage::Management(scope, event) => {
-            return crate::app::components::system_settings_mcp::management::update(app, scope, event);
-        }
         McpMessage::GlobalSyncMenu(menu) => {
             if menu.is_none()
                 || (crate::app::components::system_settings_mcp::is_visible(app)
@@ -93,25 +90,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             return Task::none();
         }
         McpMessage::Extension(event) => return extensions::update(app, event),
-        McpMessage::Tools(value) => return super::mcp_management_tools::update(app, value),
-        McpMessage::Diagnostic(value) => {
-            return crate::app::message::agent_apps_diagnostics::update(app, value);
-        }
-        McpMessage::Catalog(value) => return super::mcp_management_list::update(app, value),
         McpMessage::ConnectionForm(value) => return super::mcp_management_form::update(app, value),
-        McpMessage::Bindings(value) => return super::mcp_management_bindings::update(app, value),
-        McpMessage::Resync(value) => return super::mcp_management_resync::update(app, value),
         McpMessage::Transfer(value) => return transfer::update(app, value),
-        McpMessage::Import(value) => return super::mcp_management_import::update(app, value),
         McpMessage::TabSelected(v0) => LocalMessage::TabSelected(v0),
         McpMessage::Refresh => LocalMessage::Refresh,
         McpMessage::Loaded(v0) => LocalMessage::Loaded(v0),
-        McpMessage::ServerSearchChanged(query) => {
-            app.mcp_settings.bindings.matrix.query = query.clone();
-            app.mcp_settings.bindings.matrix.column_menu = None;
-            app.mcp_settings.actions.row = None;
-            LocalMessage::ServerSearchChanged(query)
-        }
+        McpMessage::ServerSearchChanged(query) => LocalMessage::ServerSearchChanged(query),
         McpMessage::InspectRefresh => LocalMessage::InspectRefresh,
         McpMessage::Connect(key) => LocalMessage::Connect(key),
         McpMessage::Connected(key, result) => LocalMessage::Connected(key, result),
@@ -153,29 +137,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             async move { (key, load_mcp_inspect_async(directory.as_deref(), Some(&name)).await) },
             |(key, result)| Message::Settings(SettingsMessage::Mcp(McpMessage::Connected(key, result))),
         ),
-        Effect::RefreshAll => refresh_all_task(directory),
-        Effect::RefreshAllAndCatalog => {
+        Effect::RefreshAll => {
             let extension_status = if app.mcp_settings.active_tab == McpSettingsTab::Extensions {
                 extensions::refresh_statuses(app)
             } else {
                 Task::none()
             };
-            let apps = if crate::app::components::system_settings_mcp::is_visible(app)
-                && !app.mcp_settings.modal_open()
-            {
-                super::apps_catalog::update(app, super::AppsCatalogMessage::EnsureLoaded)
-            } else {
-                Task::none()
-            };
-            Task::batch([
-                refresh_all_task(directory),
-                super::mcp_management_list::update(
-                    app,
-                    super::mcp_management_list::CatalogMessage::Refresh,
-                ),
-                extension_status,
-                apps,
-            ])
+            Task::batch([refresh_all_task(directory), extension_status])
         }
         Effect::Save(value) => save_task(value),
         Effect::SaveOverrides(value) => save_runtime_overrides_task(value),

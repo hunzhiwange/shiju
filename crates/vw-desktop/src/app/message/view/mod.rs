@@ -481,8 +481,6 @@ pub enum ViewMessage {
     OpenApps,
     #[cfg(not(target_arch = "wasm32"))]
     OpenFileEditor,
-    #[cfg(not(target_arch = "wasm32"))]
-    FileEditorFileSelected(String),
     /// 打开知识库工作台
     OpenKnowledge,
     /// 打开 Dify 工作流无限画布工具
@@ -1214,9 +1212,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkBrowserRuntimeTick
         | ViewMessage::SelectChatSendBehavior(_) => panel::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
-        ViewMessage::OpenFileEditor | ViewMessage::FileEditorFileSelected(_) => {
-            panel::update(app, message)
-        }
+        ViewMessage::OpenFileEditor => panel::update(app, message),
         ViewMessage::ToggleDiffPanel
         | ViewMessage::ToggleGitDiffSummary
         | ViewMessage::ToggleTerminalPanel

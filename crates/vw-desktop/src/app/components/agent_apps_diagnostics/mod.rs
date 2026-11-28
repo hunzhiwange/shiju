@@ -1,4 +1,3 @@
-pub(crate) mod mcp_panel;
 
 pub(crate) mod endpoints_modal;
 #[cfg(test)]

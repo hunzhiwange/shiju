@@ -1,16 +1,18 @@
-#[path = "management_form_paste.rs"]
-pub mod paste;
 #[path = "management_form_global.rs"]
 mod global;
+#[path = "management_form_paste.rs"]
+pub mod paste;
 
+use crate::management_context::Context;
 use gateway_mcp::global_sync::{Options, SyncItem};
 use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use vw_api_app_identity::AppId;
-use vw_api_mcp_management::{McpAppCapability, McpConfigValue, McpConnectionDefinition, McpPresetDraftView, McpSupport};
+use vw_api_mcp_management::{
+    McpAppCapability, McpConfigValue, McpConnectionDefinition, McpPresetDraftView, McpSupport,
+};
 use vw_gateway_client::GatewayClient;
-use crate::management_context::Context;
 
 #[derive(Clone)]
 pub struct Draft {
@@ -123,7 +125,12 @@ impl Draft {
         }
     }
 
-    pub fn open(context: Context, page: &crate::state::State, index: Option<usize>, sync_only: bool) -> Result<Self, String> {
+    pub fn open(
+        context: Context,
+        page: &crate::state::State,
+        index: Option<usize>,
+        sync_only: bool,
+    ) -> Result<Self, String> {
         let mut draft = Self::new(context);
         global::open(&mut draft, page, index)?;
         draft.sync_only = sync_only;
@@ -310,15 +317,19 @@ impl Draft {
                 };
                 *target = value;
             }
-            event @ (FormMessage::ValueAdd | FormMessage::ValueRemove(_)
-                | FormMessage::ValueName(..) | FormMessage::ValueText(..)) => {
+            event @ (FormMessage::ValueAdd
+            | FormMessage::ValueRemove(_)
+            | FormMessage::ValueName(..)
+            | FormMessage::ValueText(..)) => {
                 self.error = self.edit_values(event).err();
             }
             FormMessage::ArgAdd | FormMessage::ArgRemove(_) | FormMessage::ArgSet(..) => {
                 let mut args: Vec<String> = parse(&self.args).unwrap_or_default();
                 match event {
                     FormMessage::ArgAdd => args.push(String::new()),
-                    FormMessage::ArgRemove(index) if index < args.len() => { args.remove(index); }
+                    FormMessage::ArgRemove(index) if index < args.len() => {
+                        args.remove(index);
+                    }
                     FormMessage::ArgSet(index, value) if index < args.len() => args[index] = value,
                     _ => {}
                 }
@@ -386,7 +397,11 @@ impl Draft {
     }
 }
 
-pub async fn persist(client: &GatewayClient, original: Option<&Value>, server: Option<&Value>) -> Result<(), String> {
+pub async fn persist(
+    client: &GatewayClient,
+    original: Option<&Value>,
+    server: Option<&Value>,
+) -> Result<(), String> {
     global::persist(client, original, server).await
 }
 

@@ -77,16 +77,6 @@ mod knowledge_api;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod media_api;
 mod mcp_api;
-pub mod mcp_management_distribution;
-#[cfg(test)]
-mod mcp_management_distribution_tests;
-mod mcp_management_probe;
-#[cfg(test)]
-mod mcp_management_probe_tests;
-mod mcp_management_read;
-mod mcp_management_write;
-#[cfg(test)]
-mod mcp_management_write_tests;
 mod operations_api;
 mod permission_api;
 mod project_api;

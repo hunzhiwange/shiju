@@ -119,6 +119,8 @@ pub enum PreviewMessage {
     /// - `Action`: iced 文本编辑器动作
     ReadOnlyEditorAction(Action),
 
+    BlankEditorAction(Action),
+
     /// 代码编辑器内部事件
     ///
     /// 来自 iced_code_editor 的底层事件。

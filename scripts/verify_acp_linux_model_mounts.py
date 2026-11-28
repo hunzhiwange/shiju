@@ -24,7 +24,7 @@ AGENTS = {
     "iflow": ("iflow-0.5.19-model-source-v4", "read_probe"),
     "glm-acp-agent": ("glm-acp-agent-1.17.1-model-source-v5", "mcp__coexistence__read_probe"),
 }
-CATALOG = "/agent-apps/mcp"
+CATALOG = "/project-mcp/definitions"
 SERVER = "coexistence"
 TOOL = "read_probe"
 APPROVAL = f"mcp__{SERVER}__{TOOL}"

@@ -9,7 +9,6 @@ doctest = false
 
 [dependencies]
 app-config-patch = { path = "../app-config-patch" }
-desktop-apps-ui = { path = "../desktop-apps-ui" }
 desktop-assets = { path = "../desktop-assets" }
 iced = { version = "0.14", features = ["advanced"] }
 serde_json = "1"
@@ -22,23 +21,14 @@ vw-api-mcp-inspect = { path = "../api-mcp-inspect" }
 vw-api-tools = { path = "../api-tools" }
 vw-api-mcp-management = { path = "../api-mcp-management" }
 vw-api-app-identity = { path = "../api-app-identity" }
-vw-api-app-operations = { path = "../api-app-operations" }
-vw-api-task = { path = "../api-task" }
 vw-api-transport = { path = "../api-transport" }
-desktop-provider-apps = { path = "../desktop-provider-apps" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
-gateway-mcp-write = { path = "../gateway-mcp-write" }
-gateway-mcp-distribution = { path = "../gateway-mcp-distribution" }
 serde = "1"
 vw-api-app-auth = { path = "../api-app-auth" }
 
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
-gateway-mcp-read = { path = "../gateway-mcp-read" }
-gateway-mcp-probe = { path = "../gateway-mcp-probe" }
-gateway-http = { path = "../gateway-http" }
-gateway-app-settings = { path = "../gateway-app-settings" }
 gateway-config = { path = "../gateway-config" }
-vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
+gateway-mcp = { path = "../gateway-mcp" }
 desktop-settings-apps = { path = "../desktop-settings-apps" }
 tokio = { version = "1", features = ["time"] }
 

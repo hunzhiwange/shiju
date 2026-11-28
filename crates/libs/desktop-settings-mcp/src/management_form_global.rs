@@ -16,16 +16,15 @@ pub struct GlobalDraft {
 
 impl Default for GlobalDraft {
     fn default() -> Self {
-        Self {
-            original: None,
-            enabled: true,
-            required: false,
-            timeout: "30".into(),
-        }
+        Self { original: None, enabled: true, required: false, timeout: "30".into() }
     }
 }
 
-pub fn open(draft: &mut Draft, page: &crate::state::State, index: Option<usize>) -> Result<(), String> {
+pub fn open(
+    draft: &mut Draft,
+    page: &crate::state::State,
+    index: Option<usize>,
+) -> Result<(), String> {
     if let Some(index) = index {
         let (servers, _) = editor_value(&page.editor).map_err(|error| error.to_string())?;
         let server = servers.get(index).ok_or("目录已变化，请刷新")?;

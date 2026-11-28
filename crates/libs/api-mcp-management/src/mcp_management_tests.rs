@@ -1,7 +1,6 @@
 use super::mcp_management::{
-    McpAcpMount, McpAppCapability, McpBatchOutcome, McpCatalogRecord, McpCliBinding,
-    McpConnectionCheckResult, McpConnectionDefinition, McpConnectionOutcome,
-    McpDistributionOutcome, McpDistributionResult, McpFailureCode, McpNativeStatus,
+    McpAcpMount, McpAppCapability, McpCatalogRecord, McpCliBinding,
+    McpConnectionDefinition, McpNativeStatus,
     McpRuntimeSelection, McpSupport,
 };
 use serde_json::json;
@@ -109,65 +108,4 @@ fn cc_mcp_t03_catalog_cli_runtime_and_acp_use_distinct_wire_records() {
     let mut raw_catalog = catalog;
     raw_catalog["connection"] = json!({"url": "https://example.test/?token=fixture"});
     assert!(serde_json::from_value::<McpCatalogRecord>(raw_catalog).is_err());
-}
-
-#[test]
-fn cc_mcp_t03_distribution_preserves_partial_success_and_desired_state() {
-    let target = json!({"appId": "codex", "installationId": "install-1", "targetHostId": "host-a"});
-    let wire = json!({
-        "outcome": "partially_succeeded",
-        "items": [
-            {
-                "record": {"id": "server-a", "revision": 3},
-                "target": target, "enabled": true, "desiredCommitted": true,
-                "nativeOutcome": {"status": "applied"}
-            },
-            {
-                "record": {"id": "server-b", "revision": 5},
-                "target": target, "enabled": true, "desiredCommitted": true,
-                "nativeOutcome": {"status": "failed", "code": "native_write_failed"}
-            },
-            {
-                "record": {"id": "server-c", "revision": 2},
-                "target": target, "enabled": true, "desiredCommitted": false,
-                "nativeOutcome": {"status": "unsupported"}
-            }
-        ]
-    });
-    let result: McpDistributionResult = serde_json::from_value(wire.clone()).unwrap();
-    assert_eq!(result.outcome, McpBatchOutcome::PartiallySucceeded);
-    assert_eq!(result.items[0].native_outcome, McpDistributionOutcome::Applied);
-    assert!(result.items[1].desired_committed);
-    assert_eq!(
-        result.items[1].native_outcome,
-        McpDistributionOutcome::Failed { code: McpFailureCode::NativeWriteFailed }
-    );
-    assert!(!result.items[2].desired_committed);
-    assert_eq!(result.items[2].native_outcome, McpDistributionOutcome::Unsupported);
-    assert_eq!(serde_json::to_value(result).unwrap(), wire);
-}
-
-#[test]
-fn cc_mcp_t03_connection_results_keep_generation_and_reject_raw_diagnostics() {
-    let wire = json!({
-        "operationId": "job-1", "generation": 9, "outcome": "partially_succeeded",
-        "items": [
-            {"id": "server-a", "connectionRevision": 2, "outcome": {"status": "connected", "toolCount": 0}},
-            {"id": "server-b", "connectionRevision": 3, "outcome": {"status": "not_verified"}},
-            {"id": "server-c", "connectionRevision": 4, "outcome": {"status": "failed", "code": "timed_out"}}
-        ]
-    });
-    let result: McpConnectionCheckResult = serde_json::from_value(wire.clone()).unwrap();
-    assert_eq!(result.generation, 9);
-    assert_eq!(result.items[0].outcome, McpConnectionOutcome::Connected { tool_count: Some(0) });
-    assert_eq!(result.items[1].outcome, McpConnectionOutcome::NotVerified);
-    assert_eq!(
-        result.items[2].outcome,
-        McpConnectionOutcome::Failed { code: McpFailureCode::TimedOut }
-    );
-    assert_eq!(serde_json::to_value(result).unwrap(), wire);
-
-    let mut unsafe_wire = wire;
-    unsafe_wire["items"][2]["outcome"]["message"] = json!("Authorization: Bearer fixture");
-    assert!(serde_json::from_value::<McpConnectionCheckResult>(unsafe_wire).is_err());
 }

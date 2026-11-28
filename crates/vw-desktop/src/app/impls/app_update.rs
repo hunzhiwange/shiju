@@ -538,8 +538,6 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         message::voice::invalidate(self);
         crate::app::components::system_settings_mcp::reconcile(self);
-        let cleanup = message::settings::mcp_management_probe::invalidate(self);
-        let tools_cleanup = message::settings::mcp_management_tools::invalidate(self);
         let cron_history = message::settings::cron_history::reconcile(self);
         let leave = crate::app::message::app_providers::leave::resume(self);
         let usage_is_visible = crate::app::views::usage::center::is_visible(self);
@@ -549,7 +547,7 @@ impl App {
             Task::none()
         };
         let companion = self.refresh_task_pet_window();
-        let task = Task::batch([task, cleanup, tools_cleanup, cron_history, leave, usage_activity, companion]);
+        let task = Task::batch([task, cron_history, leave, usage_activity, companion]);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

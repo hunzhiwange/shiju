@@ -295,7 +295,6 @@ pub(crate) fn value_preview_section<Message: Clone + 'static>(
 mod tests;
 
 pub mod connection;
-pub mod tools;
 
 pub fn toolbar_button<'a, Message: Clone + 'a>(
     label: &'static str,
@@ -315,27 +314,14 @@ pub(crate) fn form_field<'a, Message: Clone + 'a>(
     column![desktop_ui_controls::system_settings_common::settings_field_label(label), control.into()]
         .spacing(6).width(Length::Fill).into()
 }
-pub mod import;
-pub mod resync;
-pub mod distribution;
-pub mod bindings;
 pub mod page;
 pub mod state;
-pub mod catalog;
 
 pub mod configuration;
 pub mod configuration_update;
 pub mod management_context;
 pub mod management_form;
-pub mod management_bindings;
-pub mod management_import;
 
-pub mod diagnostic_context;
-pub mod management_list;
-pub mod management_probe;
-pub mod management_resync;
-pub mod management_tools;
-pub mod management_effect;
 
 pub mod settings_message;
 
@@ -349,22 +335,12 @@ mod desktop_split_14_tests;
 mod desktop_split_29_tests;
 
 pub mod management_state;
-pub mod management_update;
-pub mod management_form_update;
-pub mod management_import_update;
-pub mod management_bindings_update;
-
-#[cfg(test)]
-mod host_module_24_tests;
 
 #[cfg(test)]
 mod host_module_39_infrastructure_tests;
 
 #[cfg(test)]
 mod host_module_39_locale_tests;
-
-/// Independent third-party application MCP view and scoped message adapter.
-
 
 pub mod configuration_transfer;
 

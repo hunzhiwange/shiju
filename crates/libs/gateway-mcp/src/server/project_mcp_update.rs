@@ -6,21 +6,15 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use {
-    vw_api_transport::ProjectScope,
-    vw_api_transport::TenantScope,
-    vw_api_mcp_management::McpCatalogRecord,
-    vw_api_mcp_management::McpCatalogScope,
-    vw_api_mcp_management::McpFailureCode,
-    vw_api_mcp_management::McpRecordId,
-    vw_api_mcp_management::McpRecordRef,
-    vw_api_mcp_management::McpUpdateRequest,
+    vw_api_mcp_management::McpCatalogRecord, vw_api_mcp_management::McpCatalogScope,
+    vw_api_mcp_management::McpFailureCode, vw_api_mcp_management::McpRecordId,
+    vw_api_mcp_management::McpRecordRef, vw_api_mcp_management::McpUpdateRequest,
+    vw_api_transport::ProjectScope, vw_api_transport::TenantScope,
 };
 
 use super::{
     agent_apps,
-    mcp_management_read::{
-        McpHttpError, PolicyFile, access_error, failure, open_database, unavailable,
-    },
+    project_mcp::{McpHttpError, PolicyFile, access_error, failure, open_database, unavailable},
 };
 use {agent_app_services::mcp::McpCatalogStore, agent_database::GlobalDatabase};
 
@@ -45,7 +39,7 @@ pub(super) async fn update_catalog_record(
                 scope: ProjectScope::new(tenant, project_id)
                     .map_err(|_| access_error(StatusCode::BAD_REQUEST))?,
             },
-            None => McpCatalogScope::Tenant { scope: tenant },
+            None => return Err(access_error(StatusCode::BAD_REQUEST)),
         };
         let expected = McpRecordRef { id: McpRecordId(id), revision: request.expected_revision };
         // Saving the desired definition makes no claim about native distribution or connectivity.
@@ -77,7 +71,13 @@ pub(super) async fn update_catalog_record(
             )
             .map_err(access_error)?;
             let store = McpCatalogStore::new(open_database(database)?).map_err(unavailable)?;
-            store.update_record(&scope, &expected, request.connection, request.metadata, request.public_summary)
+            store.update_record(
+                &scope,
+                &expected,
+                request.connection,
+                request.metadata,
+                request.public_summary,
+            )
         };
         result.map(Json).map_err(|code| {
             let status = match code {
@@ -94,6 +94,11 @@ pub(super) async fn update_catalog_record(
     .map_err(unavailable)?
 }
 
-#[cfg(all(test, target_os = "linux", target_env = "gnu", any(target_arch = "x86_64", target_arch = "aarch64")))]
-#[path = "mcp_management_review_tests.rs"]
+#[cfg(all(
+    test,
+    target_os = "linux",
+    target_env = "gnu",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[path = "project_mcp_review_tests.rs"]
 mod review_tests;

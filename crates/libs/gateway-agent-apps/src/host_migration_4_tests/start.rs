@@ -75,12 +75,6 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
                     observed.fetch_add(1, Ordering::SeqCst);
                     let body = axum::body::to_bytes(req.into_body(), 32768).await.unwrap();
                     let payload: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
-                    if payload["method"] == "initialize" {
-                        return axum::Json(json!({"jsonrpc":"2.0","id":payload["id"], "result":{
-                            "protocolVersion":"2025-03-26", "capabilities":{}, "serverInfo":{"name":"fixture","version":"1"}
-                        }})).into_response();
-                    }
-                    if payload["method"].is_string() { return StatusCode::ACCEPTED.into_response(); }
                     if payload["stream"] == true {
                         let sample = super::stream_fixtures::samples()
                             .into_iter().find(|(protocol, _, _)| *protocol == "anthropic").unwrap().2;
@@ -112,51 +106,11 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
             },
         )
         .map_err(anyhow::Error::msg)?;
-    let project = vw_api_transport::ProjectScope::new(tenant.clone(), "project".into())?;
-    let catalog = agent_app_services::mcp::McpCatalogStore::new(database.clone()).unwrap();
-    let mcp_scope = vw_api_mcp_management::McpCatalogScope::Project { scope: project };
-    let mcp_url = format!("{url}/mcp");
-    let draft = |id: &str, connection| vw_agent_apps::mcp::catalog::McpCatalogDraft {
-        id: id.into(),
-        name: None,
-        description: None,
-        homepage: None,
-        documentation: None,
-        tags: Vec::new(),
-        connection,
-    };
-    catalog
-        .create(
-            &mcp_scope,
-            draft(
-                "http",
-                vw_api_mcp_management::McpConnectionDefinition::StreamableHttp {
-                    url: mcp_url.clone(),
-                    headers: Default::default(),
-                },
-            ),
-        )
-        .unwrap();
-    let marker = root.join("stdio-started");
-    catalog
-        .create(
-            &mcp_scope,
-            draft(
-                "sentinel",
-                vw_api_mcp_management::McpConnectionDefinition::Stdio {
-                    command: "/usr/bin/touch".into(),
-                    args: vec![marker.to_string_lossy().into_owned()],
-                    env: Default::default(),
-                    cwd: None,
-                },
-            ),
-        )
-        .unwrap();
     let jobs = DiagnosticJobs::open(root).unwrap();
     let state = agent_gateway::gateway_test_fixture::state::<(), (), ()>(
         Default::default(), true, &[TOKEN.to_owned()],
     );
-    let app = crate::agent_apps_diagnostics::router::<super::probe_host::NativeProbeHost>()
+    let app = crate::agent_apps_diagnostics::router()
         .layer(Extension(tenant))
         .layer(Extension(database))
         .layer(Extension(jobs.clone()))
@@ -186,16 +140,9 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
         );
     }
     assert_eq!(count.load(Ordering::SeqCst), 0);
-    assert!(!marker.exists(), "denied stdio configuration must not execute");
     assert!(!root.join("diagnostics.json").exists(), "denied requests must not create jobs");
-    // A paired client still cannot resolve an MCP record from another project.
-    let response = app.clone().oneshot(request(
-        json!({"kind":"mcp","serverIds":["http"]}),
-        "foreign", "desktop-local", "claude", TOKEN,
-    )).await?;
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
     for (body, expected) in [
-        (json!({"kind":"mcp","serverIds":["sentinel","missing"]}), StatusCode::NOT_FOUND),
+        (json!({"kind":"mcp","serverIds":["sentinel","missing"]}), StatusCode::GONE),
         (
             json!({"kind":"model","providerId":"provider","modelId":"fixture-model","baseUrl":url}),
             StatusCode::BAD_REQUEST,
@@ -208,7 +155,6 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
         let response =
             app.clone().oneshot(request(body, "project", "desktop-local", "claude", TOKEN)).await?;
         assert_eq!(response.status(), expected);
-        assert!(!marker.exists());
         assert_eq!(count.load(Ordering::SeqCst), 0);
     }
     assert!(!root.join("diagnostics.json").exists(), "rejected inputs must not create jobs");
@@ -232,7 +178,6 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
         ),
         (json!({"kind":"model","providerId":"provider","modelId":"fixture-model"}), 4),
         (json!({"kind":"streaming","providerId":"provider","modelId":"fixture-model"}), 5),
-        (json!({"kind":"mcp","serverIds":["http"]}), 0),
     ] {
         let response =
             app.clone().oneshot(request(body, "project", "desktop-local", "claude", TOKEN)).await?;
@@ -259,16 +204,8 @@ async fn check_start(root: &std::path::Path) -> anyhow::Result<()> {
         assert_eq!(results.as_array().unwrap().len(), 1);
         assert_eq!(results[0]["report"]["outcome"]["status"], "succeeded", "{results}");
         assert_eq!(results[0]["kind"], serde_json::to_value(job.kind)?);
-        if expected_count == 0 {
-            assert!(
-                count.load(Ordering::SeqCst) >= 7,
-                "MCP initialization and notification reached the fixture"
-            );
-        } else {
-            assert_eq!(count.load(Ordering::SeqCst), expected_count);
-        }
+        assert_eq!(count.load(Ordering::SeqCst), expected_count);
     }
-    assert!(!marker.exists());
     let before_capacity = count.load(Ordering::SeqCst);
     // Saturate the same production registry; queued work must not bypass host capacity.
     let owner = DiagnosticJobOwner {

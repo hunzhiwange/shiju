@@ -22,14 +22,19 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
     }
     // Keep unsupported routes explicit: new endpoints still require a coverage audit.
     let exclusion = match (route.method, path) {
-        ("POST",
-"/v1/agent-apps/diagnostics/jobs" | "/v1/agent-apps/mcp/checks" |
-"/v1/agent-apps/diagnostics/endpoint-candidates/query" |
-"/v1/agent-apps/diagnostics/jobs/{id}/cancel") |
-("GET",
-"/v1/agent-apps/diagnostics/jobs/{id}" | "/v1/agent-apps/mcp/presets" |
-"/v1/agent-apps/mcp/native") | ("GET" | "POST", "/v1/agent-apps/mcp") => {
-            Some("desktop application diagnostics and managed MCP have no CLI command")
+        (
+            "POST",
+            "/v1/agent-apps/diagnostics/jobs"
+            | "/v1/agent-apps/diagnostics/endpoint-candidates/query"
+            | "/v1/agent-apps/diagnostics/jobs/{id}/cancel",
+        )
+        | ("GET", "/v1/agent-apps/diagnostics/jobs/{id}") => {
+            Some("desktop application diagnostics have no CLI command")
+        }
+        ("GET", "/v1/global/mcp/options")
+        | ("POST", "/v1/global/mcp/sync" | "/v1/project-mcp/definitions")
+        | ("PUT", "/v1/project-mcp/definitions/{id}") => {
+            Some("native MCP sync and project MCP review have no CLI command")
         }
         ("POST", "/v1/mcp/apps/call") => {
             Some("session-bound MCP App tool calls have no CLI command")

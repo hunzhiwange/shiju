@@ -1,7 +1,16 @@
-use crate::app::{App, Message, message::PreviewMessage};
+use crate::app::{App, Message, Screen, message::PreviewMessage};
+use iced::widget::text_editor;
 use iced::{Element, Length};
 use desktop_editor::components::preview_panel::view::{content::{self, ContentTab}, ContentMessage};
 pub fn build_content_base(app: &App) -> Element<'_, Message> {
+    if app.navigation_tabs.screen == Screen::Preview && app.navigation_tabs.preview_tabs.is_empty() {
+        return text_editor(&app.preview_state.blank_editor)
+            .height(Length::Fill)
+            .size(app.preview_state.current_font_size)
+            .on_action(|action| Message::Preview(PreviewMessage::BlankEditorAction(action)))
+            .into();
+    }
+
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let tab = app.navigation_tabs.active_preview_path.as_ref().and_then(|path| app.navigation_tabs.preview_tabs.iter().find(|tab| &tab.path == path)).map(|tab| ContentTab {
         path: &tab.path, editor: &tab.editor, scroll_id: tab.scroll_id.clone(), truncated: tab.truncated,

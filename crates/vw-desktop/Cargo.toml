@@ -88,10 +88,6 @@ gateway-knowledge = { path = "../libs/gateway-knowledge" }
 desktop-expert-hub = { path = "../libs/desktop-expert-hub" }
 gateway-workflow = { path = "../libs/gateway-workflow" }
 gateway-voice = { path = "../libs/gateway-voice" }
-gateway-mcp-distribution = { path = "../libs/gateway-mcp-distribution" }
-gateway-mcp-read = { path = "../libs/gateway-mcp-read" }
-gateway-mcp-write = { path = "../libs/gateway-mcp-write" }
-gateway-mcp-probe = { path = "../libs/gateway-mcp-probe" }
 local-app-auth = { path = "../libs/local-app-auth" }
 gateway-mcp = { path = "../libs/gateway-mcp" }
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native" }

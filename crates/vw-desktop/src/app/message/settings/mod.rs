@@ -26,12 +26,7 @@ mod heartbeat;
 mod hooks;
 mod http_request;
 pub(crate) mod mcp;
-pub(crate) mod mcp_management_bindings;
 pub(crate) mod mcp_management_form;
-pub(crate) mod mcp_management_import;
-pub(crate) mod mcp_management_list;
-pub(crate) mod mcp_management_probe;
-pub(crate) mod mcp_management_resync;
 mod memory;
 mod messages;
 mod model_routes;
@@ -336,16 +331,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 }
 
 pub(crate) mod aggregation_omp;
-
-
-
-#[cfg(test)]
-mod mcp_management_resync_tests;
-
-#[cfg(test)]
-mod mcp_management_tools_tests;
-
-pub(crate) mod mcp_management_tools;
 
 pub(crate) mod worktrees;
 

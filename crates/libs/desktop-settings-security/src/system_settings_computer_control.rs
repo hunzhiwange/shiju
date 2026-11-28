@@ -246,19 +246,46 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
     .into()
 }
 
-fn management_page(i18n: I18n, state: &ComputerControlSettingsState, feature: ControlSetting) -> Element<'_, Event> {
+fn management_page(
+    i18n: I18n,
+    state: &ComputerControlSettingsState,
+    feature: ControlSetting,
+) -> Element<'_, Event> {
     let chrome = feature == ControlSetting::Chrome;
     let title = if chrome { "Google Chrome" } else { i18n.__("任意应用") };
+    let readiness = state.feature(feature).map(|report| report.readiness);
+    let status = i18n.__(readiness
+        .map(|readiness| feature_readiness_label(feature, readiness))
+        .unwrap_or("尚未取得服务端状态"));
+    let refresh_label = if state.loading { "加载中…" } else { "刷新状态" };
     let mut content = column![
-        action(i18n, i18n.__("返回电脑操控"), Event::ManageClose, true),
-        text(i18n.__(title)).size(28),
-        text(i18n.__(state.feature(feature).map(|report| feature_readiness_label(feature, report.readiness)).unwrap_or("尚未取得服务端状态")))
-            .size(13).style(settings_muted_text_style),
-        action(i18n, i18n.__("刷新状态"), Event::Refresh, !state.busy()),
-    ].spacing(20).width(Length::Fill);
+        row![
+            action(i18n, "返回电脑操控", Event::ManageClose, true),
+            action(i18n, refresh_label, Event::Refresh, !state.busy()),
+        ]
+        .spacing(8)
+        .wrap(),
+        settings_page_heading(title, i18n.__(feature_description(feature))),
+    ]
+    .spacing(16)
+    .width(Length::Fill);
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
+    let status = if !chrome
+        && matches!(
+            readiness,
+            Some(
+                ControlReadiness::Unauthorized
+                    | ControlReadiness::NotInstalled
+                    | ControlReadiness::Disconnected
+            )
+        ) {
+        settings_error_banner(status)
+    } else {
+        text(status).size(13).style(settings_muted_text_style).into()
+    };
+    content = content.push(status);
     if chrome {
         content = content.push(settings_group_card(column![
             text(i18n.__("浏览器连接")).size(17),
@@ -268,81 +295,158 @@ fn management_page(i18n: I18n, state: &ComputerControlSettingsState, feature: Co
                 .size(13),
             text(i18n.__("识矩和 Codex 可以在同一 Chrome 中使用，各自通过自己的扩展连接和授权。"))
                 .size(13).style(settings_muted_text_style),
-        ].spacing(12)));
+        ].spacing(12)).padding([16, 22]));
         content = content.push(browser_permissions_form(i18n, state));
     } else {
-        let service_state = state.native_service.as_ref().map(|report| report.state);
-        let mut permissions = column![
-            text(i18n.__("系统权限")).size(17),
-            text(i18n.__("请在网关所在的 Mac 上为 ShiJu Computer Use 授予辅助功能和屏幕录制权限。")).size(13),
-        ].spacing(12);
-        permissions = permissions.push(text(desktop_i18n::__!(i18n, "目标网关：%s", (state.target_host).to_string()).expect("valid settings message")).size(13));
-        if let Some(service_state) = service_state {
-            let label = match service_state {
-                NativeServiceState::Available => i18n.__("执行应用可用"),
-                NativeServiceState::NotInstalled => i18n.__("执行应用未安装"),
-                NativeServiceState::Disconnected => i18n.__("执行应用断开或身份验证失败"),
-                NativeServiceState::Unsupported => i18n.__("目标系统暂不支持"),
-            };
-            permissions = permissions.push(text(label).size(13));
-        }
-        if let Some(install) = &state.native_install {
-            let mut actions = row![action(i18n, i18n.__("复制安装地址"), Event::CopyNativeInstallPath, !state.busy())]
-                .spacing(10);
-            permissions = permissions
-                .push(text(i18n.__("安装包内位置")).size(13))
-                .push(text(install.app_path.as_str()).size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph));
-            if service_state == Some(NativeServiceState::NotInstalled) {
-                permissions = permissions.push(text(i18n.__("在本机终端运行安装命令，完成后刷新状态。")).size(13));
-                actions = actions.push(action(i18n, i18n.__("复制安装命令"), Event::CopyNativeInstallCommand, !state.busy()));
-            }
-            permissions = permissions.push(actions.wrap());
-        } else if service_state == Some(NativeServiceState::NotInstalled) {
-            let hint = if state.target_is_local {
-                i18n.__("请安装包含 ShiJu Computer Use.app 的完整识矩 macOS 安装包，然后刷新状态。")
-            } else {
-                i18n.__("请在运行网关的 Mac 上打开识矩，从该电脑的安装包安装执行应用，然后刷新状态。")
-            };
-            permissions = permissions.push(text(hint).size(13));
-        }
-        if cfg!(target_os = "macos") && state.target_is_local
-            && matches!(service_state, Some(NativeServiceState::Available | NativeServiceState::Disconnected))
-        {
-            permissions = permissions
-                .push(text(i18n.__("打开对应的系统设置，将授权窗口里的应用图标拖放到列表中，开启开关后返回刷新。"))
-                    .size(13))
-                .push(row![
-                    action(i18n, i18n.__("打开辅助功能"), Event::OpenNativePermissionGuide { screen_recording: false }, !state.busy()),
-                    action(i18n, i18n.__("打开屏幕录制"), Event::OpenNativePermissionGuide { screen_recording: true }, !state.busy()),
-                ].spacing(10).wrap());
-        }
-        if let Some(report) = &state.native_permission_report {
-            permissions = permissions.push(text(desktop_i18n::__!(i18n, "辅助功能：%s；屏幕录制：%s", (if report.accessibility { i18n.__("已授权") } else { i18n.__("未授权") }).to_string(), (if report.screen_recording { i18n.__("已授权") } else { i18n.__("未授权") }).to_string()).expect("valid settings message")).size(13));
-        }
-        content = content.push(settings_group_card(container(permissions).padding([16, 0])));
+        content = content.push(native_permissions(i18n, state));
     }
-    let mut grants = column![text(if chrome { i18n.__("已授权网站") } else { i18n.__("已授权应用") }).size(17)].spacing(12);
-    let mut count = 0;
+    let mut grants = column![settings_group_heading(
+        if chrome { i18n.__("已授权网站") } else { i18n.__("已授权应用") },
+        i18n.__("持久授权在实际操作的确认提示中授予，可在此撤销。"),
+    )]
+    .spacing(12)
+    .width(Length::Fill);
+    let mut has_grants = false;
     for scope in &state.approvals {
         let identity = match (chrome, scope) {
             (true, ControlGrantScope::ChromeOrigin(identity)) => identity,
             (false, ControlGrantScope::Application(identity)) => identity,
             _ => continue,
         };
-        count += 1;
-        grants = grants.push(row![
-            text(identity).size(13).width(Length::Fill),
-            action(i18n, i18n.__("撤销授权"), Event::Revoke(scope.clone()), !state.busy()),
-        ].spacing(12).align_y(Alignment::Center));
+        has_grants = true;
+        grants = grants.push(settings_divider()).push(
+            row![
+                text(identity.as_str())
+                    .size(13)
+                    .width(Length::Fill)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+                action(i18n, "撤销授权", Event::Revoke(scope.clone()), !state.busy()),
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center),
+        );
     }
-    if count == 0 {
-        grants = grants.push(text(if state.status.is_some() { i18n.__("暂无授权") } else { i18n.__("授权列表尚未加载") }).size(13));
+    if !has_grants {
+        let empty_label =
+            if state.status.is_some() { "暂无授权" } else { "授权列表尚未加载" };
+        grants = grants
+            .push(settings_divider())
+            .push(text(i18n.__(empty_label)).size(13).style(settings_muted_text_style));
     }
-    grants = grants.push(text(i18n.__("持久授权在实际操作的确认提示中授予，可在此撤销。")).size(13).style(settings_muted_text_style));
-    content = content.push(settings_group_card(grants));
-    scrollable(container(content).padding([0, 7]).width(Length::Fill))
+    content = content.push(settings_group_card(grants).padding([16, 22]));
+    scrollable(container(content).padding([8, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill).into()
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+fn native_permissions(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Event> {
+    use iced::widget::text::Wrapping;
+
+    let service_state = state.native_service.as_ref().map(|report| report.state);
+    let can_open_guide = cfg!(target_os = "macos")
+        && state.target_is_local
+        && matches!(
+            service_state,
+            Some(NativeServiceState::Available | NativeServiceState::Disconnected)
+        );
+    let mut permissions = column![settings_group_heading(
+        i18n.__("系统权限"),
+        i18n.__("请在网关所在的 Mac 上为 ShiJu Computer Use 授予辅助功能和屏幕录制权限。"),
+    )]
+    .spacing(12)
+    .width(Length::Fill);
+    let report = state.native_permission_report.as_ref();
+    if can_open_guide || report.is_some() {
+        if can_open_guide {
+            permissions = permissions.push(
+                text(i18n.__(
+                    "打开对应的系统设置，将授权窗口里的应用图标拖放到列表中，开启开关后返回刷新。",
+                ))
+                .size(13)
+                .style(settings_muted_text_style),
+            );
+        }
+        for (label, open_label, screen_recording, granted) in [
+            ("辅助功能", "打开辅助功能", false, report.map(|report| report.accessibility)),
+            ("屏幕录制", "打开屏幕录制", true, report.map(|report| report.screen_recording)),
+        ] {
+            let mut details = column![text(i18n.__(label)).size(14)].spacing(4).width(Length::Fill);
+            if let Some(granted) = granted {
+                let status = if granted { "已授权" } else { "未授权" };
+                details =
+                    details.push(text(i18n.__(status)).size(12).style(settings_muted_text_style));
+            }
+            let mut permission = row![details].spacing(12).align_y(Alignment::Center);
+            if can_open_guide {
+                permission = permission.push(action(
+                    i18n,
+                    open_label,
+                    Event::OpenNativePermissionGuide { screen_recording },
+                    !state.busy(),
+                ));
+            }
+            permissions = permissions.push(settings_divider()).push(permission);
+        }
+    }
+
+    let mut installation = column![
+        text(i18n.__("目标网关")).size(12).style(settings_muted_text_style),
+        text(state.target_host.as_str()).size(13).wrapping(Wrapping::WordOrGlyph),
+    ]
+    .spacing(6)
+    .width(Length::Fill);
+    if let Some(service_state) = service_state {
+        let label = match service_state {
+            NativeServiceState::Available => "执行应用可用",
+            NativeServiceState::NotInstalled => "执行应用未安装",
+            NativeServiceState::Disconnected => "执行应用断开或身份验证失败",
+            NativeServiceState::Unsupported => "目标系统暂不支持",
+        };
+        installation =
+            installation.push(text(i18n.__(label)).size(12).style(settings_muted_text_style));
+    }
+    if let Some(install) = &state.native_install {
+        let mut actions =
+            row![action(i18n, "复制安装地址", Event::CopyNativeInstallPath, !state.busy())]
+                .spacing(8);
+        let mut location = column![
+            text(i18n.__("安装包内位置")).size(12).style(settings_muted_text_style),
+            text(install.app_path.as_str()).size(13).wrapping(Wrapping::WordOrGlyph),
+        ]
+        .spacing(8)
+        .width(Length::Fill);
+        if service_state == Some(NativeServiceState::NotInstalled) {
+            location = location.push(
+                text(i18n.__("在本机终端运行安装命令，完成后刷新状态。"))
+                    .size(13)
+                    .style(settings_muted_text_style),
+            );
+            actions = actions.push(action(
+                i18n,
+                "复制安装命令",
+                Event::CopyNativeInstallCommand,
+                !state.busy(),
+            ));
+        }
+        installation = installation.push(
+            container(location.push(actions.wrap()))
+                .padding([10, 12])
+                .width(Length::Fill)
+                .style(settings_section_card_style),
+        );
+    } else if service_state == Some(NativeServiceState::NotInstalled) {
+        let hint = if state.target_is_local {
+            "请安装包含 ShiJu Computer Use.app 的完整识矩 macOS 安装包，然后刷新状态。"
+        } else {
+            "请在运行网关的 Mac 上打开识矩，从该电脑的安装包安装执行应用，然后刷新状态。"
+        };
+        installation = installation.push(text(i18n.__(hint)).size(13));
+    }
+    settings_group_card(permissions.push(settings_divider()).push(installation))
+        .padding([16, 22])
+        .into()
 }
 
 fn browser_permissions_form(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Event> {

@@ -25,13 +25,6 @@ python3 "/Applications/ShiJu.app/Contents/Resources/computer-control/install_loc
 SHA-256；重复安装可更新，未知文件冲突、符号链接和已修改资源直接拒绝。
 status 仅报告资源完整性，不能作为后端运行或系统授权证据。
 
-Chrome 106+：在桌面宿主创建的隔离 profile 中，通过开发者模式加载
-`~/.shiju/computer-control/plugin/chrome`。扩展必须具有中继批准的 ID
-`ogfgcnpdhnmkpcbaclbglefaclanipmg`；未提供稳定扩展签名 key，因此任意
-unpacked 安装不保证取得该 ID。ID 不符时必须由维护者提供匹配签名的扩展，
-不可放宽 allowed_origins。注册仅位于隔离 profile 的 NativeMessagingHosts，
-不修改日常 Chrome profile 或组织策略。每个文档需点击扩展临时授权。
-
 Office：使用支持 ExcelApi 1.2、WordApi 1.3 的 Excel/Word 客户端。
 将安装目录下 `plugin/office` 静态托管于 `https://localhost:3000/office/`，
 自行配置 localhost TLS 证书并由用户决定信任；安装器不会部署 HTTPS 服务、
@@ -43,9 +36,26 @@ Office：使用支持 ExcelApi 1.2、WordApi 1.3 的 Excel/Word 客户端。
 时按系统提示授权。不得通过安装器改写 TCC。重启后应重新检查宿主状态、Chrome
 扩展连接和 Office 配对，分别在临时文档验证操作与回读。本轮尚未执行这些验收。
 
+## Chrome 连接与授权
+
+在运行 ShiJu 网关的 Mac 上，使用与网关同版本的安装包执行安装和注册。
+
+```sh
+python3 "/Applications/ShiJu.app/Contents/Resources/computer-control/install_local.py" install
+python3 "/Applications/ShiJu.app/Contents/Resources/computer-control/install_local.py" connect-chrome
+```
+
+1. 在需要使用的 Chrome 106+ 用户资料中打开 `chrome://extensions`，开启开发者模式，选择「加载已解压的扩展程序」，填写 `~/.shiju/computer-control/plugin/chrome`。扩展显示为 ShiJu Computer Control，ID 为 `emgccmapinhmammgkamadflhlbdojabf`。
+2. 如果曾加载过旧版 ShiJu 扩展，从扩展页移除旧版 ShiJu 条目，再加载新版本。`connect-chrome` 只注册 ShiJu 自己的 Native Messaging Host。Codex 可继续使用自己的扩展和授权。
+3. 在识矩「设置 → 电脑操控」启用 Chrome。打开目标 HTTP 或 HTTPS 网页，点击 ShiJu Computer Control，悬停图标读取 `Tab ID`。
+4. 在识矩聊天中给出标签页 ID 和网址，请识矩读取页面。若提示站点审批，先批准，再切回目标标签页并点击 ShiJu 扩展。网关在工具发起连接后等待扩展 30 秒。连接后可回到电脑操控设置刷新状态。
+5. 页面导航或打开新标签页后，在目标页再次点击 ShiJu 扩展。浏览、上传和下载分别受识矩的站点策略控制。
+
+识矩的 Chrome 桥接暂不提供历史记录、网站工具或完整 CDP。
+
 ## 停用与卸载
 
-先在 ShiJu 设置停止会话、撤销授权并停用插件，再从隔离 Chrome 删除扩展、
+先在 ShiJu 设置停止会话、撤销授权并停用插件，再从 Chrome 移除 ShiJu 扩展、
 从 Office 删除旁加载项并关闭任务窗格。之后运行：
 
 ```sh

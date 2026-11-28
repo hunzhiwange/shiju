@@ -9,7 +9,7 @@ import shlex
 import sys
 
 HOST = "com.shiju.computer_control"
-ORIGIN = "chrome-extension://ogfgcnpdhnmkpcbaclbglefaclanipmg/"
+ORIGIN = "chrome-extension://emgccmapinhmammgkamadflhlbdojabf/"
 RECEIPT = "installed-resources.json"
 
 

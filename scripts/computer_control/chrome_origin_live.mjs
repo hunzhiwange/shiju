@@ -39,7 +39,7 @@ try{
   const send=(method,params={},sessionId)=>new Promise((r,j)=>{const id=++next;pending.set(id,{resolve:r,reject:j});socket.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));});
   const version=await send('Browser.getVersion');
   const loaded=await send('Extensions.loadUnpacked',{path:resolve('plugins/shiju-computer-control/chrome')});
-  assert.equal(loaded.id,'ogfgcnpdhnmkpcbaclbglefaclanipmg');
+  assert.equal(loaded.id,'emgccmapinhmammgkamadflhlbdojabf');
   let worker;
   for(let i=0;i<60;i++){worker=(await send('Target.getTargets')).targetInfos.find(t=>t.type==='service_worker'&&t.url.includes(loaded.id));if(worker)break;await delay(100);}
   assert.ok(worker);

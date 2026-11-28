@@ -128,6 +128,7 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
       const result = results[0];
       if (grantEpoch !== epoch || navigationVersion !== (versions.get(tab.id) ?? 0) ||
           results.length !== 1 || result?.frameId !== 0 || !result?.documentId || result.result?.url !== url) fail('stale_target');
+      void api.action.setTitle({ tabId: tab.id, title: `ShiJu Computer Control · Tab ID: ${tab.id}` }).catch(() => {});
       connect();
       grants.set(tab.id, { tabId: tab.id, documentId: result.documentId, navigationVersion, url });
       await api.action.setBadgeText({ tabId: tab.id, text: 'ON' });

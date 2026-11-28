@@ -18,7 +18,8 @@ use tokio::{
 };
 use vw_api_computer_control::*;
 
-pub const EXTENSION_ID: &str = "ogfgcnpdhnmkpcbaclbglefaclanipmg";
+/// Chrome derives this ID from the public key in the ShiJu extension manifest.
+pub const EXTENSION_ID: &str = "emgccmapinhmammgkamadflhlbdojabf";
 const DEADLINE: Duration = Duration::from_secs(10);
 
 #[derive(Deserialize)]

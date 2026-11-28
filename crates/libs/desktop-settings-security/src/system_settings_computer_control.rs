@@ -260,13 +260,16 @@ fn management_page(i18n: I18n, state: &ComputerControlSettingsState, feature: Co
         content = content.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
     if chrome {
-        content = content.push(browser_permissions_form(i18n, state));
         content = content.push(settings_group_card(column![
             text(i18n.__("浏览器连接")).size(17),
-            text(i18n.__("当前通过 ShiJu Computer Control 扩展连接网关。使用目标网页前，点击扩展授予当前标签页访问权限；导航或打开新标签页后需要重新授权。")).size(13),
-            text(i18n.__("Chrome 可以同时供你和 Codex 使用，但 Codex 的扩展连接与授权不会自动授予识矩。请勿卸载 Codex 扩展或清除现有浏览器配置。")).size(13),
-            text(i18n.__("历史记录、网站工具和完整 CDP 尚无执行后端；浏览、上传、下载的策略在下方配置并保存。")).size(13).style(settings_muted_text_style),
+            text(i18n.__("在运行网关的 Mac 上，使用安装包内的 install_local.py 依次执行 install 和 connect-chrome。然后打开 chrome://extensions，开启开发者模式并加载 ~/.shiju/computer-control/plugin/chrome。"))
+                .size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+            text(i18n.__("在目标网页点击 ShiJu Computer Control，悬停扩展图标查看标签页 ID。用该 ID 和网址在识矩发起操作，按提示批准站点，再在 Chrome 点击扩展完成连接。导航或切换到新标签页后需要重新授权。"))
+                .size(13),
+            text(i18n.__("识矩和 Codex 可以在同一 Chrome 中使用，各自通过自己的扩展连接和授权。"))
+                .size(13).style(settings_muted_text_style),
         ].spacing(12)));
+        content = content.push(browser_permissions_form(i18n, state));
     } else {
         let service_state = state.native_service.as_ref().map(|report| report.state);
         let mut permissions = column![

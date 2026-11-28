@@ -1,9 +1,13 @@
 """Deferred installer behavior coverage; never changes the process HOME."""
+import base64
+import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
 
-from install_local import install, package, status, uninstall
+from chrome_native_host import ORIGIN
+from install_local import HOST, install, package, status, uninstall
 
 
 class InstallTests(unittest.TestCase):
@@ -20,6 +24,14 @@ class InstallTests(unittest.TestCase):
         self.assertTrue(status(self.home)["resources_present"])
         self.assertIn(str(root), (root / "chrome-native-host").read_text())
         self.assertTrue((root / "plugin/office/word/manifest.xml").is_file())
+        extension = json.loads((root / "plugin/chrome/manifest.json").read_text())
+        public_key = base64.b64decode(extension["key"], validate=True)
+        extension_id = hashlib.sha256(public_key).hexdigest()[:32].translate(
+            str.maketrans("0123456789abcdef", "abcdefghijklmnop")
+        )
+        self.assertEqual(ORIGIN, f"chrome-extension://{extension_id}/")
+        host = root / "chrome-profile/NativeMessagingHosts" / f"{HOST}.json"
+        self.assertEqual(json.loads(host.read_text())["allowed_origins"], [ORIGIN])
 
     def test_cc_control_21_repeated_install_is_idempotent(self):
         root = install(self.payload, self.home)

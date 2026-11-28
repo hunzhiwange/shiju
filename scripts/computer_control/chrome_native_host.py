@@ -15,7 +15,7 @@ import struct
 import sys
 
 HOST_NAME = "com.shiju.computer_control"
-EXTENSION_ID = "ogfgcnpdhnmkpcbaclbglefaclanipmg"
+EXTENSION_ID = "emgccmapinhmammgkamadflhlbdojabf"
 ORIGIN = f"chrome-extension://{EXTENSION_ID}/"
 MAX_FRAME = 1024 * 1024
 

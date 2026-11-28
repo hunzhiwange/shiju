@@ -8,12 +8,12 @@ function event() {
   return { addListener: f => listeners.add(f), emit: (...args) => [...listeners].map(f => f(...args)) };
 }
 export function fixture() {
-  const sent = [], scripts = [], created = [];
+  const sent = [], scripts = [], created = [], titles = [];
   const tab = { id: 7, windowId: 3, active: true, status: 'complete', url: 'https://example.test/' };
   const port = { onMessage: event(), onDisconnect: event(), postMessage: m => sent.push(m), disconnect() { this.onDisconnect.emit(); } };
   const api = {
     runtime: { id: 'extension-id', connectNative: name => { assert.equal(name, HOST_NAME); return port; } },
-    action: { onClicked: event(), setBadgeText: async () => {} },
+    action: { onClicked: event(), setBadgeText: async () => {}, setTitle: async title => { titles.push(title); } },
     tabs: {
       onUpdated: event(), onRemoved: event(), onActivated: event(), get: async id => { assert.equal(id, 7); return { ...tab }; },
       create: async args => { created.push(args); return { ...tab, id: 8, url: args.url }; },
@@ -37,7 +37,7 @@ export function fixture() {
     return sent.find(m => m.type === 'response' && m.id === (extra.id ?? id));
   }
   async function setup() { await grant(); pair(); return (await request('enumerate')).data[0]; }
-  return { api, port, tab, sent, scripts, created, controller, grant, pair, request, setup };
+  return { api, port, tab, sent, scripts, created, titles, controller, grant, pair, request, setup };
 }
 
 test('cc_control_08_manifest_has_no_permanent_site_or_external_access', async () => {
@@ -52,6 +52,7 @@ test('cc_control_08_manifest_has_no_permanent_site_or_external_access', async ()
 test('cc_control_08_unpaired_and_wrong_session_requests_are_rejected', async () => {
   const f = fixture();
   await f.grant();
+  assert.deepEqual(f.titles, [{ tabId: 7, title: 'ShiJu Computer Control · Tab ID: 7' }]);
   assert.equal(f.sent[0].type, 'hello');
   assert.equal((await f.request('enumerate')).error, 'unpaired');
   f.pair();

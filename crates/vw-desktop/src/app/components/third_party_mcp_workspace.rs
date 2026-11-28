@@ -66,7 +66,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     else {
         return container(
             column![
-                text("MCP").size(23),
+                text("MCP").size(SETTINGS_PAGE_TITLE_SIZE),
                 text(i18n.__("连接网关后刷新 MCP 目录")).style(settings_muted_text_style),
                 icon_btn(
                     Icon::ArrowClockwise,
@@ -182,7 +182,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     .wrap()
     .align_x(alignment::Horizontal::Right);
     let toolbar = row![
-        row![icon_svg(Icon::HddNetwork, 22.0).style(icon_btn_svg_style), text("MCP").size(23)]
+        row![icon_svg(Icon::HddNetwork, 22.0).style(icon_btn_svg_style), text("MCP").size(SETTINGS_PAGE_TITLE_SIZE)]
             .spacing(10)
             .align_y(Alignment::Center),
         container(toolbar_actions).align_right(Length::Fill),

@@ -7,7 +7,7 @@ use super::browser::{
 use super::catalog::{catalog_item_button_style, icon_svg, section_card_style, skill_badge};
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_group_heading_with_help,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_page_heading_with_help,
     settings_muted_text_style, settings_text_input_style, settings_value_badge,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
@@ -299,7 +299,7 @@ pub fn view<'a>(app: ViewState<'a>) -> Element<'a, Message> {
 
     let header = container(
         column![
-            settings_group_heading_with_help(
+            settings_page_heading_with_help(
                 I18n::new(locale),
                 app.app_theme,
                 tr(locale, "插件"),

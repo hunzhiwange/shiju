@@ -17,7 +17,7 @@ use crate::app::{
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::{
     settings_navigation::ThirdPartyPage,
-    system_settings_common::settings_content_panel_style,
+    system_settings_common::{SETTINGS_PAGE_TITLE_SIZE, settings_content_panel_style},
     tooltip::tooltip_dark_style,
 };
 use iced::{
@@ -146,7 +146,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
         let intercepted = routing_attached
             || aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
         let title = || {
-            let mut title = row![list::brand_icon(id, 22.0), text(&agent.entry.name).size(21)]
+            let mut title = row![list::brand_icon(id, 22.0), text(&agent.entry.name).size(SETTINGS_PAGE_TITLE_SIZE)]
                 .spacing(10)
                 .align_y(Alignment::Center);
             if let Some(snapshot) =

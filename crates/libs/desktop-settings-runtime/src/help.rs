@@ -14,7 +14,7 @@ pub fn settings_hover_help_label<'a, 'theme>(
     shared::settings_hover_help_label(label, render(title, description.into(), theme.into().map(|t| t.palette().text), i18n))
 }
 pub fn settings_page_heading_with_help<'a>(render: HelpRenderer, i18n: I18n, theme: &Theme, title: &'a str, description: impl Into<Cow<'a, str>>) -> Element<'a, Message> {
-    settings_hover_help_label(render, i18n, theme, title, text(title).size(28), description).wrap().into()
+    settings_hover_help_label(render, i18n, theme, title, text(title).size(panels::SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
 }
 pub fn settings_group_heading_with_help<'a, 'theme>(render: HelpRenderer, i18n: I18n, theme: impl Into<Option<&'theme Theme>>, title: &'a str, description: impl Into<Cow<'a, str>>) -> Element<'a, Message> {
     settings_hover_help_label(render, i18n, theme, title, text(title).size(17), description).wrap().into()

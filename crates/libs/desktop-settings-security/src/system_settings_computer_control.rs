@@ -56,7 +56,7 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
         return management_page(i18n, state, feature);
     }
     let header = column![
-        text(i18n.__("电脑操控")).size(28),
+        text(i18n.__("电脑操控")).size(SETTINGS_PAGE_TITLE_SIZE),
         text(i18n.__("管理识矩如何使用电脑上的应用程序")).size(13).style(settings_muted_text_style),
         row![
             action(i18n,

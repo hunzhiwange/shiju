@@ -21,6 +21,7 @@ use iced::{
 
 use std::borrow::Cow;
 
+pub const SETTINGS_PAGE_TITLE_SIZE: u32 = 18;
 pub const SETTINGS_SECTION_CONTENT_PADDING: Padding = Padding::ZERO;
 
 /// 构建或处理 `settings_panel` 对应的界面片段与交互数据。
@@ -70,9 +71,12 @@ pub fn settings_page_heading<'a, Message: Clone + 'a>(
     title: &'a str,
     description: &'a str,
 ) -> Element<'a, Message> {
-    column![text(title).size(28), text(description).size(13).style(settings_muted_text_style)]
-        .spacing(8)
-        .into()
+    column![
+        text(title).size(SETTINGS_PAGE_TITLE_SIZE),
+        text(description).size(13).style(settings_muted_text_style),
+    ]
+    .spacing(8)
+    .into()
 }
 
 /// 圆角设置分组上方的标题与说明。
@@ -724,6 +728,7 @@ pub fn settings_error_banner_style(theme: &Theme) -> iced::widget::container::St
     }
 }
 
+    'theme,
 pub fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style {
@@ -747,7 +752,7 @@ pub fn settings_page_heading_with_help<
     Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 >(
     i18n: desktop_i18n::I18n,
-    theme: &Theme,
+    theme: impl Into<Option<&'theme Theme>>,
     title: &'a str,
     description: impl Into<Cow<'a, str>>,
 ) -> Element<'a, Message> {
@@ -755,7 +760,7 @@ pub fn settings_page_heading_with_help<
         i18n,
         theme,
         title,
-        text(title).size(28),
+        text(title).size(SETTINGS_PAGE_TITLE_SIZE),
         description,
     )
     .wrap()

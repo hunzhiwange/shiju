@@ -157,7 +157,7 @@ pub fn view<'a, M: Clone + 'static>(
     .width(Length::Fill);
     let mut page = column![
         row![
-            text(tr(app.desktop_locale, "技能配置")).size(28),
+            text(tr(app.desktop_locale, "技能配置")).size(SETTINGS_PAGE_TITLE_SIZE),
             help_btn,
         ]
         .spacing(4)

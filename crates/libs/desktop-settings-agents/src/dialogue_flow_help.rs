@@ -1,4 +1,5 @@
 //! Reuses the host's selectable help renderer without depending on the chat domain.
+use desktop_ui_controls::system_settings_common::SETTINGS_PAGE_TITLE_SIZE;
 use super::dialogue_flow_message::Message;
 use desktop_i18n::I18n;
 use iced::{Element, Theme, widget::{Row, Text, text}};
@@ -8,7 +9,7 @@ pub fn settings_hover_help_label<'a, 'theme>(renderer: Renderer, i18n: I18n, the
     renderer(i18n, theme.into(), title, label, description.into())
 }
 pub fn settings_page_heading_with_help<'a>(renderer: Renderer, i18n: I18n, theme: &Theme, title: &'a str, description: impl Into<Cow<'a, str>>) -> Element<'a, Message> {
-    settings_hover_help_label(renderer, i18n, theme, title, text(title).size(28), description).wrap().into()
+    settings_hover_help_label(renderer, i18n, theme, title, text(title).size(SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
 }
 pub fn settings_group_heading_with_help<'a, 'theme>(renderer: Renderer, i18n: I18n, theme: impl Into<Option<&'theme Theme>>, title: &'a str, description: impl Into<Cow<'a, str>>) -> Element<'a, Message> {
     settings_hover_help_label(renderer, i18n, theme, title, text(title).size(17), description).wrap().into()

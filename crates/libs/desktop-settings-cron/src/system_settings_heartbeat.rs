@@ -17,6 +17,7 @@
 //! 用户的配置会通过 Gateway 保存到共享数据库的 `heartbeat` 字段中。
 
 use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE,
     settings_checkbox_style, settings_field_label, settings_divider,
     settings_group_card,
     settings_help_button_with_locale as settings_help_button,
@@ -45,7 +46,7 @@ fn hover_help_label<'a>(app: &ViewData<'_>, title: &'a str, label: iced::widget:
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, (app.help_content)(title, description.into(), Some(app.app_theme.palette().text), I18n::new(app.desktop_locale)))
 }
 fn settings_page_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
-    hover_help_label(app, title, text(title).size(28), description).wrap().into()
+    hover_help_label(app, title, text(title).size(SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
 }
 fn settings_group_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
     hover_help_label(app, title, text(title).size(17), description).wrap().into()

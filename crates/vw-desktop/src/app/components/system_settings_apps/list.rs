@@ -11,7 +11,7 @@ pub(crate) fn view(
             Some(&state.updates),
             size.width < 580.0,
             |title, description| {
-                crate::app::components::system_settings_common::settings_group_heading_with_help(
+                crate::app::components::system_settings_common::settings_page_heading_with_help(
                     i18n,
                     None,
                     i18n.__(title),

@@ -3,6 +3,7 @@ use super::*;
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE,
     help::localized_selectable_settings_help_modal,
     icons::icon_btn,
     panels::{settings_inactive_view, with_settings_modal_escape},
@@ -73,7 +74,7 @@ pub fn view_content<'a>(
         settings_panel(
             column![
                 row![
-                    text(i18n.__("工作流")).size(20),
+                    text(i18n.__("工作流")).size(SETTINGS_PAGE_TITLE_SIZE),
                     icon_btn(
                         Icon::QuestionCircle,
                         i18n.__("帮助"),

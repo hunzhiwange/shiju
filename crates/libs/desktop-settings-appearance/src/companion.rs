@@ -1,4 +1,4 @@
-use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, settings_group_card};
+use desktop_ui_controls::system_settings_common::{SETTINGS_PAGE_TITLE_SIZE, rounded_action_btn_style, settings_group_card};
 use desktop_i18n::I18n;
 use iced::widget::{button, column, container, responsive, row, text};
 use iced::{Alignment, Border, Element, Length};
@@ -17,7 +17,7 @@ pub const LABELS: [(&str, &str); 4] = [
 pub fn content<'a, K: Copy + PartialEq + 'static, Message: Clone + 'static>(app: &View<K>, avatars: [K; 4], event: fn(Action<K>) -> Message, avatar_preview: fn(K, f32) -> Element<'static, Message>) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let header = row![
-        text(i18n.__("智能伙伴")).size(22).width(Length::Fill),
+        text(i18n.__("智能伙伴")).size(SETTINGS_PAGE_TITLE_SIZE).width(Length::Fill),
         button(
             text(i18n.__(if app.task_pet_visible { "隐藏 Mini" } else { "显示 Mini" })).size(13)
         )

@@ -41,7 +41,7 @@ pub fn view<'a, U: Clone + 'static>(i18n: I18n,
                 .center_y(40)
                 .style(settings_icon_tile_style),
             column![
-                title(i18n.__("授权中心"), 24),
+                title(i18n.__("授权中心"), SETTINGS_PAGE_TITLE_SIZE),
                 text(i18n.__("管理当前公司的登录账号")).size(13).style(settings_muted_text_style),
             ]
             .spacing(3),

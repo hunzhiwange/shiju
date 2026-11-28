@@ -463,7 +463,7 @@ pub fn view<'a>(
     let header = row![
         icon_svg(Icon::Journals, 20.0).style(icon_btn_svg_style),
         settings_hover_help_label(
-            text(i18n.__("技能")).size(23),
+            text(i18n.__("技能")).size(SETTINGS_PAGE_TITLE_SIZE),
             text(i18n.__("安装技能后，可以选择启用它的应用实例。")).size(13).into(),
         ),
         Space::new().width(Length::Fill),

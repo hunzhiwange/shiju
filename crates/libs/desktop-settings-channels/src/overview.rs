@@ -1,6 +1,7 @@
 use desktop_ui_controls::system_settings_common::tabs::settings_compact_tab_button;
 use crate::help::{settings_hover_help_label};
 use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE,
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
     settings_divider, settings_error_banner, settings_group_card,
     settings_muted_text_style, settings_responsive_row, settings_section_content,
@@ -379,7 +380,7 @@ pub fn view<'a, M: Clone + 'static>(app: ViewState<'a>, selected_panel: Element<
             i18n,
             app.app_theme,
             page_title,
-            text(page_title).size(18),
+            text(page_title).size(SETTINGS_PAGE_TITLE_SIZE),
             tr(locale, "集中配置 CLI 与外部消息通道的接入参数。")
         )
         .wrap()).map(map),

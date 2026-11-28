@@ -6,6 +6,7 @@ mod metadata_fill;
 
 use crate::view_style::ViewStyle;
 use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE,
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_close_button, settings_control_with_hint,
     settings_divider, settings_error_banner, settings_group_card, settings_modal_card, settings_modal_header, settings_muted_text_style,
@@ -132,7 +133,7 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
     let description = connection_text(locale, "浏览模型目录中的 provider，并快速连接或加入热门。");
     let search_hint = connection_text(locale, "按 provider 名称或 provider ID 快速定位可用目录。");
     let header = settings_modal_header(
-        style.help_label(title, text(title).size(18), format!("{description}\n\n{search_hint}"))
+        style.help_label(title, text(title).size(SETTINGS_PAGE_TITLE_SIZE), format!("{description}\n\n{search_hint}"))
         .wrap(),
         settings_close_button(close.clone()),
     );

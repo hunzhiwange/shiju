@@ -142,7 +142,7 @@ pub fn view<'a, M: Clone + 'static, C: Clone + 'a>(i18n: desktop_i18n::I18n,
     let header = row![
         icon_svg(Icon::FileText, 19.0).style(icon_btn_svg_style),
         text(i18n.__("提示词"))
-            .size(21)
+            .size(SETTINGS_PAGE_TITLE_SIZE)
             .font(Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT }),
         prompt_menu(
             icon_btn(Icon::QuestionCircle, i18n.__("提示词帮助"), Some(toggle(Menu::Help))),

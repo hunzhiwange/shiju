@@ -3,6 +3,7 @@
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE,
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_divider,
     settings_error_banner, settings_modal_card_style, settings_muted_text_style,
     settings_panel_style, settings_select, settings_text_input,
@@ -90,7 +91,7 @@ fn menus(state: &ArchivedChatsState, i18n: I18n) -> Element<'_, Message> {
 pub fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element<'_, Message> {
     let i18n = I18n::new(locale);
     let heading = row![
-        text(i18n.__("已归档的聊天")).size(24).width(Length::Fill),
+        text(i18n.__("已归档的聊天")).size(SETTINGS_PAGE_TITLE_SIZE).width(Length::Fill),
         optional_action(
             i18n.__("刷新"),
             state.operating_ids.is_empty().then_some(ArchivedChatsMessage::Refresh),

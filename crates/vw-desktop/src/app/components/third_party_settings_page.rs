@@ -20,7 +20,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             .center_x(36)
             .center_y(36)
             .style(settings_content_panel_style),
-        text(i18n.__("本地路由")).size(25).width(Length::Fill),
+        text(i18n.__("本地路由")).size(SETTINGS_PAGE_TITLE_SIZE).width(Length::Fill),
     ]
     .spacing(12)
     .align_y(Alignment::Center);

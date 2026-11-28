@@ -14,6 +14,7 @@ use desktop_settings_skills::prompts::{
 use desktop_ui_controls::{
     settings_navigation::ThirdPartyPage,
     system_settings_common::{
+        SETTINGS_PAGE_TITLE_SIZE,
         icon_svg, icons::icon_btn_svg_style, settings_divider, settings_muted_text_style,
     },
 };
@@ -314,7 +315,7 @@ fn frame(i18n: desktop_i18n::I18n, body: Element<'_, Message>) -> Element<'_, Me
         container(
             row![
                 icon_svg(Icon::FileText, 19.0).style(icon_btn_svg_style),
-                text(i18n.__("提示词")).size(21),
+                text(i18n.__("提示词")).size(SETTINGS_PAGE_TITLE_SIZE),
             ]
             .spacing(8)
             .align_y(Alignment::Center)

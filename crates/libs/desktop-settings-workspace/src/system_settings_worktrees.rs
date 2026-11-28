@@ -123,7 +123,7 @@ pub fn editor_with<'a, Host: Clone + 'a>(
     }
     let validation = draft.validated().err();
     let mut header = column![settings_modal_header(
-        text(i18n.__("工作树设置")).size(20),
+        text(i18n.__("工作树设置")).size(SETTINGS_PAGE_TITLE_SIZE),
         settings_close_button(close.clone())
     )]
     .spacing(10);

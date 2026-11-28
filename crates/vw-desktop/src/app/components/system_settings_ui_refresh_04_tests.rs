@@ -341,7 +341,9 @@ async fn help_rollout_27_quick_messages_renders_contextual_help() {
 
         fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
             assert_ne!(value, self.description, "optional copy is hidden while idle");
-            if value == self.title && bounds.height > 24.0 {
+            if value == self.title
+                && self.bounds.is_none_or(|previous| bounds.height > previous.height)
+            {
                 self.bounds = Some(bounds);
             }
         }

@@ -133,10 +133,9 @@ pub fn view<'a, M: Clone + 'static>(
     save_error: &'a Option<String>,
     content: Element<'a, M>,
     map: fn(Message) -> M,
-    heading_help: crate::HelpRenderer<M>,
 ) -> Element<'a, M> {
     use iced::Alignment;
-    use iced::widget::{container, row};
+    use iced::widget::{row, text};
     let help_btn = settings_help_button_with_locale(app.desktop_locale, map(Message::HelpOpen));
     let tabs = settings_tab_row(skills_tab_labels().iter().map(|(label, tab)| {
         skills_tab_button(tr(app.desktop_locale, label), *tab, active_tab).map(map)
@@ -158,25 +157,11 @@ pub fn view<'a, M: Clone + 'static>(
     .width(Length::Fill);
     let mut page = column![
         row![
-            container(
-                (heading_help)(
-                    I18n::new(app.desktop_locale),
-                    Some(app.app_theme),
-                    tr(app.desktop_locale, "技能配置"),
-                    iced::widget::text(tr(app.desktop_locale, "技能配置")).size(28),
-                    tr(
-                        app.desktop_locale,
-                        "浏览、搜索和导入技能，查看发现顺序并调整系统配置。"
-                    )
-                    .into(),
-                )
-                .wrap()
-            )
-            .width(Length::Fill),
+            text(tr(app.desktop_locale, "技能配置")).size(28),
             help_btn,
         ]
-        .align_y(Alignment::Start)
-        .wrap(),
+        .spacing(4)
+        .align_y(Alignment::Center),
         tabs,
     ]
     .spacing(16)

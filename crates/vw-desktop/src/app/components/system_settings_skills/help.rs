@@ -1,4 +1,4 @@
-//! Map shared help copy and close actions into the desktop message envelope.
+//! Render the shared skills help modal with the desktop close action.
 use crate::app::{App, Message, message};
 use iced::Element;
 pub(super) fn view_overlays<'a>(
@@ -10,7 +10,6 @@ pub(super) fn view_overlays<'a>(
         app.general_settings.desktop_locale,
         app.clipboard_state.last_copied_code_hash,
         dialog,
-        Message::CopyCode,
         Message::Settings(message::SettingsMessage::SkillsHelpClose),
     )
 }

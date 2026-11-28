@@ -1,7 +1,6 @@
 mod ui;
 use crate::types::*;
 use crate::update::state::State;
-use desktop_i18n::settings_extensions::text as tr;
 use iced::Element;
 
 struct Fixture {
@@ -129,21 +128,15 @@ fn view(app: &Fixture) -> Element<'_, Message> {
         &app.skills_settings.save_error,
         content,
         page_message,
-        help::<Message>,
     )
 }
 fn view_overlays<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
     let base = crate::browser::view_overlays(context(app), base, browser_message);
-    if !app.skills_settings.show_help_modal {
-        return base;
-    }
-    desktop_ui_controls::system_settings_common::help::with_settings_help_modal(
+    crate::help::view_overlays(
+        app.skills_settings.show_help_modal,
+        app.desktop_locale,
+        None,
         base,
-        tr(app.desktop_locale, "Skills 配置帮助").into(),
-        crate::help::help_text(app.desktop_locale).into(),
-        desktop_assets::assets::Icon::Copy,
-        tr(app.desktop_locale, "复制"),
-        Message::None,
         Message::None,
     )
 }

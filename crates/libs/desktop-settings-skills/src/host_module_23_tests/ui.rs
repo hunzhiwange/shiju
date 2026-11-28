@@ -739,8 +739,13 @@ async fn help_rollout_10_renders_contextual_help() {
         let context = (size, &theme, locale);
         app.skills_settings.active_tab = SkillsSettingsTab::SystemConfig;
         let mut ui = scene(view(&app), &mut renderer, size);
+        let title = geometry(&mut ui, &renderer).label(tr(locale, "技能配置"));
+        let help_icon = iced::Point::new(title.x + title.width + 17.0, title.center_y());
+        assert!(matches!(
+            click(&mut ui, &mut renderer, help_icon).as_slice(),
+            [Message::Page(crate::page::Message::HelpOpen)]
+        ));
         for (title, description) in [
-            ("技能配置", "浏览、搜索和导入技能，查看发现顺序并调整系统配置。"),
             ("系统配置", "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"),
             ("项目技能", "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。"),
             ("提示注入模式", "compact 更省上下文，full 会注入完整技能内容。"),

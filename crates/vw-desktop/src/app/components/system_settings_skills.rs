@@ -121,7 +121,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         &app.skills_settings.save_error,
         content,
         page_message,
-        heading_help,
     )
 }
 
@@ -184,21 +183,5 @@ fn help<'a>(
         Message::None => desktop_settings_skills::page::Message::None,
         _ => unreachable!("plain selectable help only emits copy or no-op events"),
     });
-    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
-}
-
-fn heading_help<'a>(
-    i18n: desktop_i18n::I18n,
-    theme: Option<&iced::Theme>,
-    title: &'a str,
-    label: iced::widget::Text<'a>,
-    description: std::borrow::Cow<'a, str>,
-) -> iced::widget::Row<'a, Message> {
-    let content = crate::app::components::chat_panel::message_view::selectable_titled_text(
-        title,
-        description,
-        theme.map(|t| t.palette().text),
-        i18n,
-    );
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
 }

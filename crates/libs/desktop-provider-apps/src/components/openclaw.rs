@@ -96,7 +96,7 @@ pub fn fields<'a>(
             i18n.__("OpenClaw 原生供应商节点"),
             i18n.__("编辑 models.providers 中的单个节点。支持 JSON 注释，保存时由执行端校验。")
         ),
-        settings_panel(fields)
+        settings_section_content(fields)
     ]
     .spacing(12)
     .width(Length::Fill)

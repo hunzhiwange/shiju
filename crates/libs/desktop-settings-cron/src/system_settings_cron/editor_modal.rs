@@ -52,13 +52,13 @@ pub fn with_edit_modal<'a, M: Clone + 'static>(
         }),
     )
     .wrap();
-    let header = column![title, tabs, settings_divider()].padding([0, 7]).spacing(10);
+    let header = column![title, tabs, settings_divider()].spacing(10);
     let actions = row![
         secondary_button(i18n.__("取消"), close.clone()),
         schedule::save_button(i18n, draft, editing),
     ]
     .spacing(10);
-    let mut footer = column![settings_divider()].padding([0, 7]).spacing(10).width(Length::Fill);
+    let mut footer = column![settings_divider()].spacing(10).width(Length::Fill);
     if let Some(error) = save_error_banner(app) {
         footer = footer.push(error);
     }

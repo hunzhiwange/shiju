@@ -294,7 +294,7 @@ pub fn view<'a, M: Clone + 'static>(
         body = body.push(text(i18n.__("正在处理…")).size(12).style(settings_muted_text_style));
     }
     let close = message(Event::Close);
-    let header = container(text(i18n.__("存储与同步")).size(20).font(HEADING)).padding([0, 7]);
+    let header = text(i18n.__("存储与同步")).size(20).font(HEADING);
     let mut footer = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
     if s.error.is_some() {
         footer = footer.push(control(i18n.__("刷新状态"), Event::Refresh, true));
@@ -306,8 +306,7 @@ pub fn view<'a, M: Clone + 'static>(
                 .style(style::primary)
                 .on_press_maybe((!s.busy).then_some(close.clone())),
         ),
-    )
-    .padding([0, 7]);
+    );
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .padding([24, 17])
         .style(style::dialog)

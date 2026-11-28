@@ -125,7 +125,7 @@ pub fn fields<'a>(
     );
     column![
         column![heading, hint(i18n.__("密钥请在下方单独输入。官方账号授权暂不可用。"))].spacing(6),
-        settings_panel(fields),
+        settings_section_content(fields),
     ]
     .spacing(12)
     .width(Length::Fill)

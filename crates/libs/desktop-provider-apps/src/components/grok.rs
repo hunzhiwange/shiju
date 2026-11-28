@@ -89,7 +89,7 @@ pub fn fields<'a>(
     );
     column![
         column![heading, hint(i18n.__("官方授权和模型发现暂不可用。"))].spacing(6),
-        settings_panel(fields),
+        settings_section_content(fields),
     ]
     .spacing(12)
     .width(Length::Fill)

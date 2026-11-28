@@ -4,7 +4,7 @@
 use super::headings::*;
 
 use desktop_ui_controls::system_settings_common::{
-    settings_field_label, settings_panel, settings_toggle,
+    settings_divider, settings_field_label, settings_section_content, settings_toggle,
 };
 use desktop_i18n::I18n;
 use iced::widget::{column, row};
@@ -120,7 +120,8 @@ pub(super) fn refresh_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
             i18n.__("刷新策略"),
             i18n.__("统一项目会话与任务看板刷新策略。"),
         ),
-        settings_panel(
+        settings_divider(),
+        settings_section_content(
             column![
                 task_board_auto_refresh_toggle,
                 session_auto_refresh_toggle,

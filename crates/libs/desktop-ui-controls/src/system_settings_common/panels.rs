@@ -215,7 +215,9 @@ pub fn settings_modal_layout_with_scroll_id<'a, Message: Clone + 'a>(
     footer: Option<Element<'a, Message>>,
     scroll_id: Option<&'static str>,
 ) -> iced::widget::Container<'a, Message> {
-    let body = scrollable(container(body.into()).padding([0, 7]).width(Length::Fill))
+    let gutter = [0, 7];
+    let header = container(header.into()).padding(gutter).width(Length::Fill);
+    let body = scrollable(container(body.into()).padding(gutter).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .width(Length::Fill)
         .height(Length::Fill);
@@ -223,9 +225,9 @@ pub fn settings_modal_layout_with_scroll_id<'a, Message: Clone + 'a>(
         Some(id) => body.id(id),
         None => body,
     };
-    let mut content = column![header.into(), body].spacing(16).width(Length::Fill);
+    let mut content = column![header, body].spacing(16).width(Length::Fill);
     if let Some(footer) = footer {
-        content = content.push(footer);
+        content = content.push(container(footer).padding(gutter).width(Length::Fill));
     }
     settings_modal_card(content.height(Length::Fill))
 }

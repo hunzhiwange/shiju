@@ -6,7 +6,7 @@ use super::headings::*;
 use desktop_ui_controls::color_picker::parse_color;
 use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_field_label,
-    settings_muted_text_style, settings_panel, settings_responsive_row, settings_text_input,
+    settings_muted_text_style, settings_section_content, settings_responsive_row, settings_text_input,
 };
 use desktop_i18n::I18n;
 use crate::project_message::edit::Event as ProjectMessage;
@@ -237,7 +237,8 @@ pub(super) fn general_tab<'a>(app: &View<'a>, path: &'a str) -> Element<'a, Mess
             i18n.__("项目展示"),
             i18n.__("配置项目名称、图标来源与图标主题色。"),
         ),
-        settings_panel(
+        settings_divider(),
+        settings_section_content(
             column![
                 settings_responsive_row(name_label, "", move || {
                     let input = settings_text_input(name_label, &app.project_editor.project_edit_name);
@@ -256,7 +257,8 @@ pub(super) fn general_tab<'a>(app: &View<'a>, path: &'a str) -> Element<'a, Mess
             ]
             .spacing(8)
         ),
-        settings_panel(settings_responsive_row(
+        settings_divider(),
+        settings_section_content(settings_responsive_row(
             i18n.__("项目地址"),
             i18n.__("项目根目录的路径，仅供查看。"),
             move || {

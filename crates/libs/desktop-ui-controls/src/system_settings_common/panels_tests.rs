@@ -53,6 +53,60 @@ fn settings_modal_card_shrinks_to_content() {
     assert_size(&element, Length::Shrink, Length::Shrink);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn settings_modal_sections_share_horizontal_edges_with_and_without_scrolling() {
+    use super::panels::settings_modal_layout;
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, widget};
+    use iced::widget::{Space, container};
+    use iced::{Font, Pixels, Rectangle, Renderer, Size};
+
+    #[derive(Default)]
+    struct Sections(Vec<(widget::Id, Rectangle)>);
+
+    impl widget::Operation for Sections {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn widget::Operation)) {
+            visit(self);
+        }
+
+        fn container(&mut self, id: Option<&widget::Id>, bounds: Rectangle) {
+            if let Some(id) = id {
+                self.0.push((id.clone(), bounds));
+            }
+        }
+    }
+
+    let renderer = <Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("tiny-skia renderer");
+    let limits = layout::Limits::new(Size::ZERO, Size::new(420.0, 320.0));
+    let section = |id: &'static str, height: u32| {
+        container(Space::new().height(height)).id(id).width(Length::Fill)
+    };
+    for height in [20, 480] {
+        let mut modal: Element<'_, Message> = settings_modal_layout(
+            section("modal-header", 20),
+            section("modal-body", height),
+            Some(section("modal-footer", 20).into()),
+        )
+        .width(420)
+        .height(320)
+        .into();
+        let mut tree = widget::Tree::new(modal.as_widget());
+        let node = modal.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let mut sections = Sections::default();
+        modal.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut sections);
+
+        let [header, body, footer] = ["modal-header", "modal-body", "modal-footer"].map(|id| {
+            let id = widget::Id::from(id);
+            sections.0.iter().find(|(found, _)| *found == id).expect("modal section").1
+        });
+        assert_eq!((header.x, header.width), (body.x, body.width));
+        assert_eq!((footer.x, footer.width), (body.x, body.width));
+    }
+}
+
 #[test]
 fn settings_modal_overlay_without_base_stacks_backdrop_and_card() {
     let element = settings_modal_overlay(None, Message::None, text("card"));

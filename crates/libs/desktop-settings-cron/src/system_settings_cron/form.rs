@@ -14,6 +14,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
                 S::CronJobEditNameChanged(name)
             )),
             composer::view(app, draft, editing),
+            settings_divider(),
             schedule::frequency_form(app, draft, editing),
         ]
         .spacing(12)

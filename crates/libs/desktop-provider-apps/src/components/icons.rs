@@ -7,7 +7,7 @@ use crate::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::{
     Alignment, Element, Length,
-    widget::{button, column, container, image, row, scrollable, text, text_input},
+    widget::{button, column, image, row, text, text_input},
 };
 use vw_api_app_provider_edit::icons::AppProviderIconChange as Change;
 
@@ -83,7 +83,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
             .on_input_maybe(ready.then_some(|value| message(Event::DraftName(value))))
     };
     let mut fields = column![
-        settings_panel(column![current, pending].spacing(6)),
+        settings_section_content(column![current, pending].spacing(6)),
         text(i18n.__("我的图标")).size(18),
         text(i18n.__("库操作立即保存。删除库条目会保留供应商已保存的图标。"))
             .size(13)
@@ -92,7 +92,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
     .spacing(10);
     match &form.draft {
         Some(Draft::Upload { name, .. }) => {
-            fields = fields.push(settings_panel(
+            fields = fields.push(settings_divider()).push(settings_section_content(
                 column![
                     text(i18n.__("上传 PNG · 名称")),
                     input(name),
@@ -102,8 +102,9 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
             ));
         }
         Some(Draft::Rename { name, .. }) => {
-            fields =
-                fields.push(settings_panel(column![text(i18n.__("重命名 · 名称")), input(name)].spacing(8)));
+            fields = fields.push(settings_divider()).push(settings_section_content(
+                column![text(i18n.__("重命名 · 名称")), input(name)].spacing(8),
+            ));
         }
         Some(Draft::Delete { name, .. }) => {
             fields = fields.push(settings_panel(text(i18n.format("从图标库删除「%s」？", &[(name.to_string()).into()]).expect("valid display template"))));
@@ -122,7 +123,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
             fields = fields.push(text(i18n.__("图标库为空。")));
         }
         for icon in rows {
-            fields = fields.push(settings_panel(
+            fields = fields.push(settings_divider()).push(settings_section_content(
                 row![
                     preview(i18n, &icon.data),
                     text(&icon.name).width(Length::Fill),
@@ -178,19 +179,10 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
     } else if form.busy {
         layout = layout.push(text(i18n.__("正在处理…")).size(13).style(settings_muted_text_style));
     }
-    let card = settings_modal_card(
-        layout
-            .push(
-                scrollable(container(fields).padding([0, 7]))
-                    .id(SCROLL_ID)
-                    .direction(scrollable::Direction::Vertical(
-                        scrollable::Scrollbar::new().width(4).scroller_width(4),
-                    ))
-                    .height(Length::Fill),
-            )
-            .push(footer),
+    let card = settings_modal_layout_with_scroll_id(
+        layout, fields, Some(footer.into()), Some(SCROLL_ID),
     )
-    .width(Length::Fixed(680.))
-    .height(Length::Fixed(620.));
+    .width(680)
+    .height(620);
     card.into()
 }

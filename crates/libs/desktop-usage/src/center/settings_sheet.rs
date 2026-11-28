@@ -22,12 +22,14 @@ fn action<'a>(
         .on_press_maybe(enabled.then_some(Outcome::Event(event)))
 }
 
-fn card<'a, M: 'a>(content: impl Into<Element<'a, M>>) -> iced::widget::Container<'a, M> {
-    container(content).width(Length::Fill).style(super::view::panel_style)
-}
-
-fn section<'a, M: 'a>(title: &'static str, content: impl Into<Element<'a, M>>) -> Element<'a, M> {
-    column![text(title).size(14).style(text::secondary), card(content)].spacing(8).into()
+fn section<'a, M: Clone + 'static>(
+    title: &'static str,
+    content: impl Into<Element<'a, M>>,
+) -> Element<'a, M> {
+    column![text(title).size(14).style(text::secondary), settings_divider(), content.into()]
+        .spacing(8)
+        .width(Length::Fill)
+        .into()
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -135,9 +137,9 @@ fn scan_controls(i18n: desktop_i18n::I18n, state: &State, ready: bool) -> Elemen
     .spacing(12)
     .align_y(iced::Alignment::Center);
     let mut body = column![
-        container(scanning).padding(14),
+        container(scanning).padding([14, 0]),
         rule::horizontal(1),
-        container(routing).padding(14),
+        container(routing).padding([14, 0]),
     ];
     if state.error.is_some() {
         body = body.push(
@@ -148,7 +150,7 @@ fn scan_controls(i18n: desktop_i18n::I18n, state: &State, ready: bool) -> Elemen
                 ]
                 .spacing(8),
             )
-            .padding(14),
+            .padding([14, 0]),
         );
     }
     body.into()
@@ -178,7 +180,7 @@ pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 ]
                 .spacing(10)
             )
-            .padding(14)
+            .padding([14, 0])
         ),
         section(
             i18n.__("定价"),
@@ -193,7 +195,7 @@ pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .spacing(12)
                 .align_y(iced::Alignment::Center)
             )
-            .padding(14)
+            .padding([14, 0])
         ),
     ]
     .spacing(18);

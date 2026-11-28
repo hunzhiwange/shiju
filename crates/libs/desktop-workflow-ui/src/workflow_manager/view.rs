@@ -3,7 +3,7 @@ use super::*;
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_PAGE_TITLE_SIZE,
+    SETTINGS_PAGE_TITLE_SIZE, settings_section_content,
     help::localized_selectable_settings_help_modal,
     icons::icon_btn,
     panels::{settings_inactive_view, with_settings_modal_escape},
@@ -841,7 +841,7 @@ fn build_draft_editor(i18n: desktop_i18n::I18n, draft: &WorkflowDraft) -> Elemen
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
         );
 
-    settings_panel(form).height(Length::Fill).into()
+    settings_section_content(form).height(Length::Fill).into()
 }
 
 fn input_row<'a>(
@@ -1068,7 +1068,7 @@ fn build_status_row<'a>(
         ]
         .spacing(6),
     );
-    settings_panel(fields).into()
+    settings_section_content(fields).into()
 }
 
 fn identity_picker<'a>(

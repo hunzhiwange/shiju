@@ -87,9 +87,10 @@ fn policy_group<'a>(i18n: desktop_i18n::I18n,
     fields: &'a [String; 9],
     editable: bool,
 ) -> Element<'a, Message> {
-    settings_panel(
+    settings_section_content(
         column![
             text(title).size(15),
+            settings_divider(),
             responsive(move |size| {
                 let columns = (size.width as usize / 140).clamp(1, indices.len());
                 let mut grid = column![].spacing(12);

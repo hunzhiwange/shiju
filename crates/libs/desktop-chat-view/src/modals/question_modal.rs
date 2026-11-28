@@ -115,9 +115,9 @@ pub fn with_question_modal<'a, Message: Clone + 'static>(
     if let Some(req) = request.cloned() {
         use desktop_ui_controls::system_settings_common::{
             SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-            rounded_action_btn_style, settings_close_button, settings_modal_header,
+            rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_header,
             settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-            settings_panel, settings_text_input_style,
+            settings_section_content, settings_text_input_style,
         };
         use iced::widget::{button, column, container, row, text, text_input};
         use iced::{Alignment, Length, Theme};
@@ -241,7 +241,7 @@ pub fn with_question_modal<'a, Message: Clone + 'static>(
                     question_column = question_column.push(input);
                 }
 
-                content = content.push(settings_panel(question_column).padding([12, 14]));
+                content = content.push(settings_divider()).push(settings_section_content(question_column));
             }
 
             let cancel_message = emit(Event::QuestionReject);

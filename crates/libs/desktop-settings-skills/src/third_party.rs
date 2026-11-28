@@ -410,7 +410,7 @@ pub fn view<'a>(
                 panel = panel.push(text(format!("{name}：{:?}", result.status)).size(12));
             }
         }
-        container(panel).padding(10).width(Length::Fill).style(settings_section_card_style).into()
+        settings_section_content(panel).into()
     });
     workspace::view(i18n, state, label, picker().into(), bindings, &options, icon)
 }

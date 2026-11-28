@@ -370,12 +370,7 @@ fn native_permissions(i18n: I18n, state: &ComputerControlSettingsState) -> Eleme
                 !state.busy(),
             ));
         }
-        installation = installation.push(
-            container(location.push(actions.wrap()))
-                .padding([10, 12])
-                .width(Length::Fill)
-                .style(settings_section_card_style),
-        );
+        installation = installation.push(settings_section_content(location.push(actions.wrap())));
     } else if service_state == Some(NativeServiceState::NotInstalled) {
         let hint = if state.target_is_local {
             "请安装包含 ShiJu Computer Use.app 的完整识矩 macOS 安装包，然后刷新状态。"

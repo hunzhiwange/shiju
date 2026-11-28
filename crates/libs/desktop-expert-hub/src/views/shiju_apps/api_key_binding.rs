@@ -7,8 +7,10 @@ use gateway_shiju_app::ShijuIamApiKeyDto;
 use super::styles;
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_control_with_hint, settings_error_banner, settings_field_label, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_select,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
+    settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_section_content, settings_select,
 };
 use desktop_apps_ui::shiju_apps::ShijuAppsMessage;
 use desktop_app_launch::{ShijuAppLaunchState, ShijuAppsLoadState};
@@ -141,7 +143,7 @@ fn selected_key_details(
 ) -> Element<'static, Message> {
     let enabled = key.status == "enabled";
     let status = if enabled { i18n.__("已启用") } else { i18n.__("未启用") };
-    container(
+    settings_section_content(
         column![
             row![
                 text(i18n.__("所选密钥详情")).size(14),
@@ -151,6 +153,7 @@ fn selected_key_details(
                     .style(move |theme| styles::status_style(theme, enabled)),
             ]
             .align_y(Alignment::Center),
+            settings_divider(),
             detail_field(i18n, i18n.__("名称"), key.key_name.clone(), false),
             detail_field(i18n, i18n.__("掩码"), key.api_key_mask.clone(), true),
             detail_field(i18n, i18n.__("密钥 ID"), key.api_key_id.to_string(), true),
@@ -163,9 +166,6 @@ fn selected_key_details(
         ]
         .spacing(10),
     )
-    .padding(14)
-    .width(Length::Fill)
-    .style(styles::binding_field_style)
     .into()
 }
 

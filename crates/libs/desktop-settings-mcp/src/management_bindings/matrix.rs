@@ -19,7 +19,6 @@ pub const APPS: [AppId; 12] = [
 const MIN_NAME_WIDTH: f32 = 180.0;
 const CELL_WIDTH: f32 = 36.0;
 const ACTIONS_WIDTH: f32 = 66.0;
-const TABLE_INSET: f32 = 14.0;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -297,7 +296,7 @@ pub fn panel<'a>(
         .align_y(Alignment::Center),
     )
     .padding(iced::Padding::ZERO.left(10))
-    .style(table_frame);
+    .style(search_style);
     let mut toolbar = row![container(search).width(Length::Fill).max_width(332)]
         .spacing(12)
         .width(Length::Fill);
@@ -326,7 +325,7 @@ pub fn panel<'a>(
         matrix_table(i18n, catalog, state, &records, &columns, running, menu, size.width)
     })
     .height(Length::Shrink);
-    body = body.push(container(table).padding(1).width(Length::Fill).style(table_frame));
+    body = body.push(settings_section_content(table));
     let failures = state
         .attempts
         .iter()
@@ -457,7 +456,8 @@ fn matrix_table<'a>(
     }
     header = header.push(Space::new().width(ACTIONS_WIDTH));
     let mut grid = column![
-        container(header).padding([8.0, TABLE_INSET]).width(Length::Fill).style(table_header),
+        settings_divider(),
+        container(header).padding([8, 0]).width(Length::Fill),
     ];
     if records.is_empty() {
         grid = grid.push(rule::horizontal(1)).push(empty(if catalog.records.is_empty() {
@@ -645,11 +645,10 @@ fn matrix_table<'a>(
         );
         grid = grid
             .push(rule::horizontal(1))
-            .push(container(line).padding([10.0, TABLE_INSET]).width(Length::Fill));
+            .push(container(line).padding([10, 0]).width(Length::Fill));
     }
     // Horizontal scrolling gives its content an unbounded width during layout.
-    let min_width =
-        MIN_NAME_WIDTH + CELL_WIDTH * columns.len() as f32 + ACTIONS_WIDTH + 2.0 * TABLE_INSET;
+    let min_width = MIN_NAME_WIDTH + CELL_WIDTH * columns.len() as f32 + ACTIONS_WIDTH;
     scrollable(container(grid).width(viewport_width.max(min_width)))
         .width(Length::Fill)
         .direction(scrollable::Direction::Horizontal(
@@ -687,21 +686,15 @@ fn hint<'a>(
 fn empty(label: &'static str) -> iced::Element<'static, ViewMessage> {
     use desktop_ui_controls::system_settings_common::settings_muted_text_style;
     iced::widget::container(iced::widget::text(label).size(13).style(settings_muted_text_style))
-        .padding([16, 12])
+        .padding([16, 0])
         .into()
 }
 
-fn table_frame(theme: &iced::Theme) -> iced::widget::container::Style {
+fn search_style(theme: &iced::Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style::default().background(palette.background.base.color).border(
         iced::Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
     )
-}
-
-fn table_header(theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style::default()
-        .background(theme.extended_palette().background.weak.color)
-        .border(iced::Border { radius: iced::border::top(8), ..iced::Border::default() })
 }
 
 pub(crate) fn app_label(app: AppId) -> &'static str {

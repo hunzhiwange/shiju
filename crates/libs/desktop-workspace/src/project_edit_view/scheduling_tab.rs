@@ -5,7 +5,7 @@ use super::headings::*;
 
 use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_field_label,
-    settings_muted_text_style, settings_panel, settings_select,
+    settings_divider, settings_muted_text_style, settings_section_content, settings_select,
 };
 use desktop_i18n::I18n;
 use crate::project_message::edit::Event as ProjectMessage;
@@ -215,7 +215,8 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
             i18n.__("调度与保护"),
             i18n.__("限制并发、设置重试与超时，并配置合并锁。")
         ),
-        settings_panel(
+        settings_divider(),
+        settings_section_content(
             column![
                 workflow_controls,
                 scheduler_tick_interval_row,

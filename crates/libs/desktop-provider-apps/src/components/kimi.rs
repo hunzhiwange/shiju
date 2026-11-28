@@ -94,7 +94,7 @@ pub fn fields<'a>(
             i18n.__("Kimi 原生供应商节点"),
             i18n.__("编辑 config.toml 的单个 provider 与关联 models 节点的 TOML，保存时由执行端校验。")
         ),
-        settings_panel(fields)
+        settings_section_content(fields)
     ]
     .spacing(12)
     .width(Length::Fill)

@@ -81,7 +81,7 @@ pub fn fields<'a>(
     );
     column![
         help.group(i18n.__("Agy 终端档案"), i18n.__("保存到目录，下次授权终端启动时生效；现有会话保持不变。")),
-        settings_panel(fields),
+        settings_section_content(fields),
     ]
     .spacing(12)
     .width(Length::Fill)

@@ -5,7 +5,7 @@ use super::headings::*;
 
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
-    settings_panel,
+    settings_divider, settings_section_content,
     settings_text_editor_style, settings_toggle,
 };
 use iced::widget::{column, row, text_editor};
@@ -63,7 +63,8 @@ pub(super) fn launch_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
             i18n.__("启动与工作区"),
             i18n.__("设置 worktree 启用策略，以及创建工作区后的启动命令。")
         ),
-        settings_panel(column![start_script_input, worktree_toggle].spacing(14))
+        settings_divider(),
+        settings_section_content(column![start_script_input, worktree_toggle].spacing(14))
     ]
     .spacing(12)
     .into()

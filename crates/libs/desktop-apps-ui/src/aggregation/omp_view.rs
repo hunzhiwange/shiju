@@ -86,7 +86,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, M
     if ready {
         editor = editor.on_action(|a| message(Event::Declaration(a)));
     }
-    body = body.push(settings_panel(
+    body = body.push(settings_section_content(
         column![
             settings_field_label(i18n.__("条目 ID")),
             input(i18n.__("供应商 ID"), &form.id, Event::Id),

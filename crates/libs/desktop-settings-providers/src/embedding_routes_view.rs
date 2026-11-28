@@ -105,7 +105,7 @@ pub fn embedded_view<'a>(s: &'a EmbeddingRoutesSettingsState, style: ViewStyle<'
         style.locale,
         "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。",
     );
-    let templates_panel = settings_panel(
+    let templates_panel = settings_section_content(
         column![
             style.group_heading(
                 connection_text(style.locale, "快捷模板"),

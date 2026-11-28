@@ -6,7 +6,7 @@ use crate::{
 };
 use iced::{
     Element, Length,
-    widget::{button, checkbox, column, container, row, scrollable, text, text_input},
+    widget::{button, checkbox, column, row, text, text_input},
 };
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
@@ -39,7 +39,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
     ]
     .spacing(10);
     for endpoint in &form.rows {
-        body = body.push(settings_panel(
+        body = body.push(settings_divider()).push(settings_section_content(
             column![
                 text(&endpoint.url),
                 text(i18n.format("%s · 最后使用：%s", &[((if endpoint.kind == AppProviderEndpointKind::FullUrl {
@@ -70,7 +70,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
         body = body
             .push(text(i18n.__("普通请求头：供原生适配消费；此入口仅保存，尚未投影到原生配置。")))
             .push(input(i18n.__("{\"X-Title\":\"示例\"}"), &form.headers, Event::Headers))
-            .push(text(i18n.__("代理覆盖：仅适用于路由/聚合代理；生产代理未接入，保存不代表生效。")))
+            .push(text(i18n.__("代理覆盖：适用于路由代理；生产代理未接入，保存不代表生效。")))
             .push(input(
                 "{\"headers\":{},\"body\":{\"temperature\":0.2}}",
                 &form.overrides,
@@ -108,21 +108,14 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
                 ),
         );
     }
-    let card = settings_modal_card(
-        column![
-            row![
-                text(i18n.__("端点与请求选项")).size(22).width(Length::Fill),
-                settings_close_button(message(Event::Cancel))
-            ],
-            scrollable(container(body).padding([0, 7]))
-                .id("cc04-endpoints-scroll")
-                .direction(scrollable::Direction::Vertical(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4)
-                ))
-                .height(Length::Fill),
-            footer
-        ]
-        .spacing(16),
+    let card = settings_modal_layout_with_scroll_id(
+        settings_modal_header(
+            text(i18n.__("端点与请求选项")).size(22),
+            settings_close_button(message(Event::Cancel)),
+        ),
+        body,
+        Some(footer.into()),
+        Some("cc04-endpoints-scroll"),
     )
     .width(Length::Fixed(760.))
     .height(Length::Fixed(650.));

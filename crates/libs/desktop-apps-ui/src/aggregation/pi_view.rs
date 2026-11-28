@@ -72,7 +72,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, M
     if ready {
         editor = editor.on_action(|action| message(Event::Declaration(action)));
     }
-    body = body.push(settings_panel(column![
+    body = body.push(settings_section_content(column![
         settings_field_label(i18n.__("供应商条目 ID")), input(i18n.__("供应商 ID"), &form.id, Event::Id),
         settings_field_label(i18n.__("名称")), input(i18n.__("显示名称"), &form.name, Event::Name),
         settings_field_label(i18n.__("单条模型声明（JSON）")),

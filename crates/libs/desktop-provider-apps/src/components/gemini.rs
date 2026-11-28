@@ -115,7 +115,7 @@ pub fn fields<'a>(
                     active.then_some(|v| message(EditMessage::Gemini(Field::Apply(v)))),
                 ),
         );
-    column![text(i18n.__("Gemini CLI 配置")).size(17), settings_panel(fields)]
+    column![text(i18n.__("Gemini CLI 配置")).size(17), settings_section_content(fields)]
         .spacing(12)
         .width(Length::Fill)
         .into()

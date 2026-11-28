@@ -94,7 +94,7 @@ pub fn fields<'a>(
             i18n.__("Mcode 原生供应商节点"),
             i18n.__("编辑 config.yaml 中单个 custom_provider 节点的 YAML，保存时由执行端校验。")
         ),
-        settings_panel(fields)
+        settings_section_content(fields)
     ]
     .spacing(12)
     .width(Length::Fill)

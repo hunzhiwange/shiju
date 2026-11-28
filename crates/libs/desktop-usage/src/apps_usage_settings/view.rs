@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, checkbox, column, container, row, text},
+    widget::{Space, button, checkbox, column, row, text},
 };
 
 use super::{Draft, Event, Field, Kind, Phase, Editor, Scope, send};
@@ -80,7 +80,7 @@ pub(super) fn modal_view<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
         .width(Length::Fill)
         .max_width(560)
         .height(550);
-    settings_modal_overlay(Some(base), map(close), container(Element::from(card).map(map)).padding(12))
+    settings_modal_overlay(Some(base), map(close), Element::from(card).map(map))
 }
 
 fn fields(i18n: desktop_i18n::I18n, draft: &Draft, saving: bool) -> iced::widget::Column<'_, Message> {
@@ -102,7 +102,8 @@ fn fields(i18n: desktop_i18n::I18n, draft: &Draft, saving: bool) -> iced::widget
         display = display.on_toggle(|value| send(Event::DisplayUsed(value)));
     }
     let mut fields = column![
-        settings_panel(enabled),
+        enabled,
+        settings_divider(),
         column![
             settings_field_label(i18n.__("查询类型")),
             settings_select(

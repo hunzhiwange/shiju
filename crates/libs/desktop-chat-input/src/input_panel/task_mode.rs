@@ -60,7 +60,7 @@ use vw_api_chat_identity::ReasoningEffortDto;
 use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE,
-    settings_field_label, settings_panel_style, settings_select,
+    settings_field_label, settings_section_content, settings_select,
     settings_text_input_style,
 };
 
@@ -373,5 +373,5 @@ pub fn task_mode_form<'a>(
         .spacing(6)
         .width(Length::Fill);
 
-    container(form).width(Length::Fill).padding([12, 16]).style(settings_panel_style).into()
+    settings_section_content(form).padding([12, 0]).into()
 }

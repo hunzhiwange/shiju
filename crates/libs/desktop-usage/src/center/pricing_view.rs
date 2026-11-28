@@ -236,12 +236,7 @@ fn price_form(i18n: desktop_i18n::I18n,
 ) -> (Element<'_, Message>, Element<'_, Message>) {
     let mut body = column![].spacing(16);
     if creating {
-        body = body.push(
-            container(catalog_action(i18n, enabled))
-                .padding([8, 12])
-                .width(Length::Fill)
-                .style(super::super::view::panel_style),
-        );
+        body = body.push(catalog_action(i18n, enabled)).push(settings_divider());
     }
     for (index, (label, hint, value)) in [
         (i18n.__("模型 ID"), i18n.__("例如 gpt-5.4"), price.model_id.as_ref()),

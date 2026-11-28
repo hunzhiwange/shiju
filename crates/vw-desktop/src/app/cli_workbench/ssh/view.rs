@@ -5,7 +5,7 @@ use desktop_ui_controls::system_settings_common::{
     icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_field_label,
     settings_modal_header, settings_modal_layout, settings_modal_overlay_with_escape,
-    settings_muted_text_style, settings_panel, settings_text_input,
+    settings_muted_text_style, settings_panel, settings_section_content, settings_text_input,
 };
 use iced::{
     Alignment, Element, Length,
@@ -337,7 +337,7 @@ fn details<'a>(ui: View, connection: &'a SshConnection) -> Element<'a, Message> 
         row![icon_svg(Icon::Globe, 20.0).style(icon_btn_svg_style), text(&fields.name).size(18),]
             .spacing(10)
             .align_y(Alignment::Center),
-        settings_panel(rows).padding([10, 12]),
+        settings_section_content(rows).padding([10, 0]),
     ]
     .spacing(14)
     .into()

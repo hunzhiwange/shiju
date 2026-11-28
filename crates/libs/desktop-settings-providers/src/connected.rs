@@ -13,7 +13,7 @@ use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style, primary_action_btn_style,
     provider_logo_svg, rounded_action_btn_style, settings_divider, settings_group_card,
     settings_muted_text_style,
-    settings_panel, settings_value_badge,
+    settings_panel, settings_section_content, settings_value_badge,
 };
 use desktop_i18n::settings_models::connection_text::text as connection_text;
 use desktop_i18n::settings_models::messages::render as owned_text;
@@ -379,7 +379,7 @@ pub fn view<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: View
     }
 
     let discover_title = connection_text(style.locale, "发现更多提供商");
-    let popular_action = settings_panel(
+    let popular_action = settings_section_content(
         row![
             style.help_label(discover_title, text(discover_title).size(13), connection_text(
                     style.locale,

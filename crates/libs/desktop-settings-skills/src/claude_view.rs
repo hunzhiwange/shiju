@@ -65,9 +65,6 @@ pub fn view<'a, M: Clone + 'static>(
             ..container::Style::default()
         }
     });
-    let section = |content| {
-        container(content).width(Length::Fill).padding(14).style(settings_section_card_style)
-    };
     let mut body = column![].spacing(12);
     if let Some(error) = s.error {
         body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
@@ -81,7 +78,7 @@ pub fn view<'a, M: Clone + 'static>(
         )));
     }
     body = body
-        .push(section(
+        .push(settings_section_content(
             column![
                 row![settings_field_label(i18n.__("受管标记")), status]
                     .spacing(10)
@@ -97,7 +94,8 @@ pub fn view<'a, M: Clone + 'static>(
             ]
             .spacing(10),
         ))
-        .push(section(
+        .push(settings_divider())
+        .push(settings_section_content(
             column![
                 settings_field_label(i18n.__("首次启动确认")),
                 text(i18n.__("选择 Claude 首次启动时是否显示确认。此处暂无法查看当前设置。"))
@@ -146,9 +144,9 @@ pub fn view<'a, M: Clone + 'static>(
     }
     let footer = footer.push(container(actions).align_right(Length::Fill));
     let card = settings_modal_layout(
-        container(header).padding([0, 7]),
+        header,
         body,
-        Some(container(footer).padding([0, 7]).into()),
+        Some(footer.into()),
     )
     .style(super::modal_card_style)
     .width(580)

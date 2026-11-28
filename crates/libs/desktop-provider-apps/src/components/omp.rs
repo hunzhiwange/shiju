@@ -93,7 +93,7 @@ pub fn fields<'a>(
             i18n.__("OMP 原生供应商节点"),
             i18n.__("编辑 models.yml 中单个 providers 节点的 YAML，保存时由执行端校验。")
         ),
-        settings_panel(fields)
+        settings_section_content(fields)
     ]
     .spacing(12)
     .width(Length::Fill)

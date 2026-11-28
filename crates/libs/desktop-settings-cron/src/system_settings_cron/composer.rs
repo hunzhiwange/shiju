@@ -3,13 +3,10 @@ use super::*;
 use crate::message::SettingsMessage as S;
 use crate::state::{CronEditorPicker as Picker, CronEditorPickerAction as Action, CronJobDraft};
 use desktop_chat_input::input_panel::{
-    layout::composer_surface,
     quick_messages::{WorkspacePicker, workspace_picker},
     send_controls::permission_mode,
-    surface_styles::chat_editor_style,
 };
 use iced::widget::column;
-use iced::Padding;
 
 pub(super) fn view<'a>(
     app: &ViewData<'a>,
@@ -55,7 +52,7 @@ pub(super) fn view<'a>(
         }))
         .spacing(6)
         .wrap();
-        content = content.push(container(chips).padding(Padding::from([8, 12]).bottom(0)));
+        content = content.push(chips);
     }
     let editor = if shell {
         settings_text_editor(&draft.command_editor)
@@ -66,14 +63,7 @@ pub(super) fn view<'a>(
             .placeholder(i18n.__("添加提示词"))
             .on_action(|action| Message::Settings(S::CronJobEditPromptEditorAction(action)))
     };
-    content = content.push(
-        container(
-            editor
-                .height(Length::Fixed(120.0))
-                .style(|theme, _| chat_editor_style(theme, false, None)),
-        )
-        .padding(Padding::from(5).bottom(if shell { 5 } else { 0 })),
-    );
+    content = content.push(editor.height(Length::Fixed(120.0)));
 
     if !shell {
         content = content.push(super::composer_picker::controls(app, draft, editing));
@@ -93,12 +83,5 @@ pub(super) fn view<'a>(
         ));
     }
 
-    composer_surface(
-        content,
-        container(controls.wrap().vertical_spacing(4)).padding([4, 10]),
-        false,
-        Default::default(),
-        None,
-    )
-    .into()
+    content.push(controls.wrap().vertical_spacing(4)).spacing(8).into()
 }

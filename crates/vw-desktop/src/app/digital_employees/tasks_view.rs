@@ -1312,7 +1312,7 @@ fn draft_view<'a>(i18n: desktop_i18n::I18n, center: &'a Center, draft: &'a Draft
     if let Some(error) = center.directory_error.as_ref() {
         settings = settings.push(settings_error_banner(error.render(i18n)));
     }
-    let settings = settings_group_card(settings).padding([16, 0]);
+    let settings = settings_group_card(settings);
     let form: Item<'_> = if narrow {
         column![content, settings].spacing(18).into()
     } else {
@@ -1327,7 +1327,7 @@ fn draft_view<'a>(i18n: desktop_i18n::I18n, center: &'a Center, draft: &'a Draft
         strong(if scheduled { i18n.__("新建定时任务") } else { i18n.__("新建任务") }, 20, Tone::Ink),
         settings_close_button(close.clone()),
     );
-    let header = column![heading, settings_divider()].spacing(12).padding([0, 7]);
+    let header = column![heading, settings_divider()].spacing(12);
 
     let actions = row![
         button(text(i18n.__("取消")).size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -1347,8 +1347,7 @@ fn draft_view<'a>(i18n: desktop_i18n::I18n, center: &'a Center, draft: &'a Draft
         settings_divider(),
         container(actions).align_right(Length::Fill),
     ]
-    .spacing(12)
-    .padding([0, 7]);
+    .spacing(12);
 
     let height: u32 = if narrow || draft.trigger == Trigger::Cron { 720 } else { 610 };
     settings_modal_layout(header, form, Some(footer.into()))

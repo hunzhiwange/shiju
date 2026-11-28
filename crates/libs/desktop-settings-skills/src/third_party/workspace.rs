@@ -1076,7 +1076,7 @@ pub fn view<'a>(
             i18n.__("没有找到匹配的技能")
         };
         return page_body
-            .push(filters.style(settings_section_card_style))
+            .push(filters)
             .push(
                 container(text(status).size(14).style(settings_muted_text_style))
                     .center_x(Length::Fill)
